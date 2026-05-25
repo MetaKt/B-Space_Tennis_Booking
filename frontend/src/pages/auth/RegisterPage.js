@@ -1,0 +1,103 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
+import { authAPI } from '../../utils/api';
+
+const RegisterPage = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    name: '', phone: '', email: '', age: '', gender: '', dateOfBirth: '', occupation: ''
+  });
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.phone.trim()) {
+      return toast.error('Name and phone number are required');
+    }
+
+    if (!/^0[0-9]{9}$/.test(form.phone)) {
+      return toast.error('Phone number must be 10 digits starting with 0 (e.g., 0812345678)');
+    }
+
+    setLoading(true);
+    try {
+      const payload = { ...form };
+      if (!payload.age) delete payload.age;
+      if (!payload.email) delete payload.email;
+      if (!payload.dateOfBirth) delete payload.dateOfBirth;
+
+      await authAPI.register(payload);
+      toast.success(t('auth.otpSent'));
+      navigate('/otp', { state: { phone: form.phone, name: form.name, mode: 'register' } });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <span className="icon">🎾</span>
+          <h1>{t('app.name')}</h1>
+        </div>
+        <h2 className="auth-title">{t('auth.register')}</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>{t('auth.name')} *</label>
+            <input type="text" name="name" className="form-input" placeholder={t('auth.enterName')} value={form.name} onChange={handleChange} required />
+          </div>
+          <div className="form-group">
+            <label>{t('auth.phone')} *</label>
+            <input type="tel" name="phone" className="form-input" placeholder="0812345678" value={form.phone} onChange={handleChange} maxLength={10} pattern="0[0-9]{9}" required />
+          </div>
+          <div className="form-group">
+            <label>{t('auth.email')}</label>
+            <input type="email" name="email" className="form-input" placeholder="email@example.com" value={form.email} onChange={handleChange} />
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>{t('auth.age')}</label>
+              <input type="number" name="age" className="form-input" placeholder="25" value={form.age} onChange={handleChange} min={1} max={120} />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>{t('auth.gender')}</label>
+              <select name="gender" className="form-select" value={form.gender} onChange={handleChange}>
+                <option value="">--</option>
+                <option value="male">{t('auth.male')}</option>
+                <option value="female">{t('auth.female')}</option>
+                <option value="other">{t('auth.other')}</option>
+              </select>
+            </div>
+          </div>
+          <div className="form-group">
+            <label>{t('auth.dob')}</label>
+            <input type="date" name="dateOfBirth" className="form-input" value={form.dateOfBirth} onChange={handleChange} />
+          </div>
+          <div className="form-group">
+            <label>{t('auth.occupation')}</label>
+            <input type="text" name="occupation" className="form-input" placeholder="e.g. Engineer" value={form.occupation} onChange={handleChange} />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? t('common.loading') : t('auth.register')}
+          </button>
+        </form>
+        <div className="auth-link">
+          {t('auth.hasAccount')}{' '}
+          <Link to="/login">{t('auth.loginNow')}</Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RegisterPage;

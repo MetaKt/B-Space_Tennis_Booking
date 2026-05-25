@@ -1,0 +1,342 @@
+// =============================================================================
+// Tennis Court Booking Platform — Prisma Schema
+// Migrated from: MongoDB + Mongoose
+// Target DB:     PostgreSQL
+// ORM:           Prisma
+// Updated:       2026-04-02  (added full Booking fields from route analysis)
+//
+// NOTE: Enum values use the SAME strings as the old Mongoose enums
+//       (lowercase) to maintain 100% API response compatibility with
+//       the existing React frontend — no frontend changes needed.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS  (values match original Mongoose enum strings exactly)
+// =============================================================================
+
+enum Role {
+  user
+  admin
+  master_admin
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum Language {
+  en
+  th
+}
+
+enum Surface {
+  hard
+  clay
+  grass
+  synthetic
+}
+
+enum Specialization {
+  beginner
+  intermediate
+  advanced
+  kids
+  competition
+  fitness
+  strategy
+}
+
+// Booking lifecycle: provisional → confirmed_booking
+// (must use underscore because 'confirmed' is taken by PaymentStatus)
+enum BookingProvisionStatus {
+  provisional       // freshly created, 15-min expiry timer running
+  confirmed_booking // user submitted payment slip / confirmed
+}
+
+enum BookingStatus {
+  upcoming
+  completed
+  cancelled
+  no_show
+}
+
+enum PaymentStatus {
+  pending         // no payment slip yet
+  submitted       // slip uploaded, awaiting admin confirmation
+  confirmed       // admin verified payment
+  refunded        // cancelled with credit refund
+  pending_refund  // cancelled while slip was submitted; awaiting admin to process cash refund
+}
+
+enum CoachOption {
+  none       // no coach
+  in_house   // one of our registered coaches
+  outside    // player brings their own coach
+}
+
+enum CoachStatus {
+  active     // coach is on the booking as originally booked
+  cancelled  // coach was removed by admin (refund issued to user credit)
+  changed    // coach was swapped to a different coach by admin
+}
+
+enum SettingCategory {
+  court_operations
+  court_management
+  add_ons
+  general
+  payment
+  booking_rules
+}
+
+// =============================================================================
+// USER
+// Mongoose source: models/User.js
+// =============================================================================
+
+model User {
+  id                String         @id @default(cuid())
+  name              String         @db.VarChar(100)
+  phone             String         @unique
+  email             String         @default("")
+  age               Int?
+  gender            Gender?
+  dateOfBirth       DateTime?
+  occupation        String         @default("")
+  avatar            String         @default("")
+  role              Role           @default(user)
+  credit            Float          @default(0)
+  preferredLanguage Language       @default(en)
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  bookings          Booking[]
+  refreshTokens     RefreshToken[]
+
+  @@index([phone])
+  @@index([role])
+}
+
+// =============================================================================
+// REFRESH TOKEN
+// Supports long-lived sessions — access token is short (15m), refresh is 30d
+// =============================================================================
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// =============================================================================
+// COURT
+// Mongoose source: models/Court.js
+// =============================================================================
+
+model Court {
+  id           String    @id @default(cuid())
+  courtNumber  Int       @unique
+  name         String
+  description  String    @default("")
+  surface      Surface   @default(hard)
+  pricePerHour Float
+  isActive     Boolean   @default(true)
+  openTime     String    @default("06:00")
+  closeTime    String    @default("22:00")
+  image        String    @default("")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  bookings     Booking[]
+}
+
+// =============================================================================
+// COACH
+// Mongoose source: models/Coach.js
+// Key change: availability[] embedded → separate CoachAvailability table
+// =============================================================================
+
+model Coach {
+  id                String              @id @default(cuid())
+  name              String
+  nickname          String              @default("")
+  phone             String
+  email             String              @default("")
+  avatar            String              @default("")
+  bio               String              @default("") @db.VarChar(1000)
+  specialization    Specialization[]
+  certifications    String[]
+  yearsOfExperience Int                 @default(0)
+  pricePerHour      Float
+  pricePerSession   Float               @default(0)
+  rating            Float               @default(0)
+  totalReviews      Int                 @default(0)
+  isActive          Boolean             @default(true)
+  isInHouse         Boolean             @default(true)
+  maxDailyBookings  Int                 @default(8)
+  notes             String              @default("")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  availability      CoachAvailability[]
+  bookings          Booking[]
+
+  @@index([isActive])
+  @@index([pricePerHour])
+}
+
+// =============================================================================
+// COACH AVAILABILITY
+// Mongoose source: embedded coachAvailabilitySchema (no _id) inside Coach
+// Key change: extracted to proper relational table with Cascade delete
+// =============================================================================
+
+model CoachAvailability {
+  id        String @id @default(cuid())
+  dayOfWeek Int    // 0 = Sunday … 6 = Saturday
+  startTime String // "HH:mm"
+  endTime   String // "HH:mm"
+
+  coachId   String
+  coach     Coach  @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@index([coachId])
+}
+
+// =============================================================================
+// BOOKING
+// Mongoose source: models/Booking.js DID NOT EXIST — fully built from:
+//   routes/bookings.js  (all fields used in create/update/query)
+//   routes/admin.js     (paymentStatus, status, coachPrice, creditUsed)
+//   routes/coaches.js   (duration, coachPrice aggregation)
+//
+// Two-phase booking flow:
+//   1. POST /bookings          → status=upcoming, bookingStatus=provisional, expiresAt=+15min
+//   2. POST /bookings/:id/confirm-payment  → bookingStatus=confirmed_booking, creditUsed applied
+//   3. POST /bookings/:id/payment-slip     → paymentStatus=submitted
+//   4. PUT  /admin/bookings/:id/confirm-payment → paymentStatus=confirmed
+// =============================================================================
+
+model Booking {
+  id                  String                 @id @default(cuid())
+  bookingId           String                 @unique // human-readable ref shown to users — generated as BK000001 format
+
+  // Scheduling
+  date                DateTime               @db.Date
+  startTime           String                                          // "HH:mm"
+  endTime             String                                          // "HH:mm"
+  duration            Float                                           // hours, e.g. 1.5
+
+  // Status (two separate state machines)
+  status              BookingStatus          @default(upcoming)
+  bookingStatus       BookingProvisionStatus @default(provisional)
+  paymentStatus       PaymentStatus          @default(pending)
+  expiresAt           DateTime?                                       // set on provisional; cleared on confirm
+
+  // Coach selection
+  coachOption         CoachOption            @default(none)
+  outsideCoachName    String                 @default("")             // when coachOption = outside
+  coachStatus         CoachStatus            @default(active)         // tracks reassignment history
+
+  // Pricing breakdown
+  courtPrice          Float
+  coachPrice          Float                  @default(0)
+  addOnsTotal         Float                  @default(0)
+  subtotal            Float                                           // courtPrice + coachPrice + addOnsTotal
+  creditUsed          Float                  @default(0)
+  totalPrice          Float                                           // subtotal - creditUsed (confirmed cash paid)
+  additionalAmountDue Float                  @default(0)             // extra cash owed after coach upgrade by admin
+
+  // Add-ons: JSON array e.g. [{ name: "Ball Rental", price: 50, quantity: 1 }]
+  addOns              Json?
+
+  // Payment evidence
+  paymentSlip         String?                                         // path to uploaded slip image
+
+  // Cancellation
+  cancelledAt         DateTime?
+  cancellationReason  String                 @default("")
+  notes               String                 @default("")
+
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  // Relations — replaces all Mongoose .populate() calls
+  userId              String
+  user                User                   @relation(fields: [userId], references: [id])
+
+  courtId             String
+  court               Court                  @relation(fields: [courtId], references: [id])
+
+  coachId             String?                                         // null when coachOption = none/outside
+  coach               Coach?                 @relation(fields: [coachId], references: [id])
+
+  @@index([userId])
+  @@index([courtId])
+  @@index([coachId])
+  @@index([date])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([bookingStatus])
+  @@index([expiresAt])
+}
+
+// =============================================================================
+// OTP
+// Mongoose source: models/OTP.js
+// Key change: MongoDB TTL index removed — expiry enforced in service logic
+//             (check expiresAt < now() on verify)
+// =============================================================================
+
+model OTP {
+  id        String   @id @default(cuid())
+  phone     String
+  otp       String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)   // max 5, enforced in route logic
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phone])
+}
+
+// =============================================================================
+// SETTING
+// Mongoose source: models/Setting.js
+// Key change: value: Mixed → value: Json (PostgreSQL JSONB)
+//   Supports all current shapes:
+//     scalar:  300, true, "06:00", "/uploads/qr.png"
+//     object:  { name: "Ball Rental", price: 50, available: true }
+// =============================================================================
+
+model Setting {
+  id          String          @id @default(cuid())
+  key         String          @unique
+  value       Json
+  category    SettingCategory
+  label       String          @default("")
+  description String          @default("")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([category])
+}

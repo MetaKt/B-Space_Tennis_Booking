@@ -1,0 +1,139 @@
+# ===========================
+# Dependencies
+# ===========================
+node_modules/
+**/node_modules/
+jspm_packages/
+bower_components/
+
+# ===========================
+# Environment & secrets
+# ===========================
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+*.pem
+*.key
+
+# ===========================
+# Build output
+# ===========================
+build/
+dist/
+out/
+.next/
+.nuxt/
+frontend/build/
+frontend/dist/
+backend/dist/
+
+# ===========================
+# Logs
+# ===========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===========================
+# Coverage / test output
+# ===========================
+coverage/
+*.lcov
+.nyc_output/
+.jest/
+
+# ===========================
+# Prisma
+# ===========================
+# Keep schema & migrations; ignore generated client & local sqlite if any
+prisma/.env
+**/prisma/.env
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# ===========================
+# Uploads (local file storage)
+# ===========================
+backend/uploads/
+uploads/
+public/uploads/
+
+# ===========================
+# Claude Code (local session data — not project code)
+# ===========================
+.claude/
+MEMORY.md
+
+# ===========================
+# Editor / IDE
+# ===========================
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# ===========================
+# OS
+# ===========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ===========================
+# Package manager caches & locks (keep one lockfile per app)
+# ===========================
+.npm/
+.pnp.*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store/
+
+# ===========================
+# Misc tooling
+# ===========================
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.turbo/
+.vercel/
+.netlify/
+.serverless/
+
+# ===========================
+# TypeScript
+# ===========================
+*.tsbuildinfo
+
+# ===========================
+# Local / personal scratch
+# ===========================
+*.local
+tmp/
+temp/
+scratch/
+TODO.local.md
