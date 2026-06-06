@@ -5,10 +5,8 @@ import { format } from 'date-fns';
 import { bookingAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
-// TODO: Replace null with your QR code image, either:
-//   a local file:  import qrImage from '../../assets/payment-qr.png'
-//   or a URL:      'https://your-domain.com/payment-qr.png'
-const PAYMENT_QR_IMAGE = null;
+import qrImage from '../../assets/test_QR_Code.jpg';
+const PAYMENT_QR_IMAGE = qrImage;
 
 const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
   const { t } = useTranslation();
