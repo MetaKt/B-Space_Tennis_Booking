@@ -8,8 +8,8 @@ import { useSocket } from '../../context/SocketContext';
 import { courtAPI, bookingAPI, settingsAPI } from '../../utils/api';
 import CourtSelector from '../../components/user/CourtSelector';
 
-// TODO: Replace null with your QR code image (URL or imported file)
-const PAYMENT_QR_IMAGE = null;
+const PAYMENT_QR_IMAGE = '/QR_Code.png';
+const DOWNLOAD_QR_IMAGE = '/QR_Code_FULL.jpg';
 
 const STEPS = ['select', 'confirm', 'payment'];
 
@@ -714,13 +714,13 @@ const BookingFlowPage = () => {
                   {settings.payment?.payment_account_name}
                 </p>
                 {PAYMENT_QR_IMAGE ? (
-                  <a href={PAYMENT_QR_IMAGE} download="payment-qr.png" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '10px', fontSize: '13px', padding: '6px 18px', textDecoration: 'none' }}>⬇ Download QR</a>
+                  <a href={DOWNLOAD_QR_IMAGE} download="B-Space.payment-qr.png" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '10px', fontSize: '13px', padding: '6px 18px', textDecoration: 'none' }}>⬇ Download QR</a>
                 ) : (
                   <button className="btn btn-outline" disabled style={{ marginTop: '10px', fontSize: '13px', padding: '6px 18px', opacity: 0.45 }}>⬇ Download QR</button>
                 )}
               </div>
 
-              <label className="file-upload">
+              <label className="file-upload" style={{ borderRadius: '0', display: 'block' }}>
                 <input type="file" accept="image/*" onChange={handlePaymentSlipChange} style={{ display: 'none' }} />
                 {paymentSlipPreview ? (
                   <img src={paymentSlipPreview} alt="slip" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }} />

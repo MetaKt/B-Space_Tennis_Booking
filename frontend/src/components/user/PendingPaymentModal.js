@@ -5,8 +5,7 @@ import { format } from 'date-fns';
 import { bookingAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
-import qrImage from '../../assets/test_QR_Code.jpg';
-const PAYMENT_QR_IMAGE = qrImage;
+const PAYMENT_QR_IMAGE = '/QR_Code.png';
 
 const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
   const { t } = useTranslation();
@@ -222,7 +221,7 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
           <div
             className="file-upload"
             onClick={() => document.getElementById('payment-slip-input')?.click()}
-            style={{ padding: '16px', marginTop: '8px', borderRadius: 'var(--radius-lg)', border: '2px dashed var(--gray-300)', cursor: 'pointer' }}
+            style={{ padding: '16px', marginTop: '8px', borderRadius: '0', border: '2px dashed var(--gray-300)', cursor: 'pointer' }}
           >
             <div className="file-upload-icon" style={{ fontSize: '28px', marginBottom: '6px' }}>📸</div>
             <div className="file-upload-text" style={{ fontSize: '12px', color: 'var(--gray-600)' }}>

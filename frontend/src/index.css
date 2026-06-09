@@ -797,7 +797,7 @@ body {
 
 .file-upload {
   border: 2px dashed var(--gray-300);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   padding: 16px;
   text-align: center;
   cursor: pointer;
