@@ -3,6 +3,7 @@ const express = require('express');
 const prisma = require('../lib/prisma');
 const { protect, adminAccess, masterOnly } = require('../middleware/auth');
 const { getIO } = require('../lib/socket');
+const { autoCompletePassedBookings } = require('../lib/bookingHelpers');
 
 const router = express.Router();
 
@@ -11,40 +12,76 @@ const router = express.Router();
 // ============================================================
 
 // @route   GET /api/admin/dashboard
-// @desc    Get admin dashboard stats
+// @desc    Get admin dashboard stats including period-based booking counts
 // @access  Admin
 router.get('/dashboard', protect, adminAccess, async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const now = new Date();
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const weekStart = new Date(today); weekStart.setDate(weekStart.getDate() - 6);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const yearStart = new Date(today.getFullYear(), 0, 1);
 
-    const [todayBookings, totalBookings, totalUsers, activeCourts, pendingPayments, todayRevenue] =
-      await prisma.$transaction([
-        prisma.booking.count({
-          where: { date: { gte: today, lt: tomorrow }, status: { not: 'cancelled' } },
-        }),
-        prisma.booking.count({}),
-        prisma.user.count({ where: { role: 'user' } }),
-        prisma.court.count({ where: { isActive: true } }),
-        prisma.booking.count({ where: { paymentStatus: 'submitted' } }),
-        prisma.booking.aggregate({
-          where: {
-            date: { gte: today, lt: tomorrow },
-            paymentStatus: { in: ['submitted', 'confirmed'] },
-          },
-          _sum: { totalPrice: true },
-        }),
-      ]);
+    const [
+      todayBookings,
+      totalBookings,
+      bookingsThisWeek,
+      bookingsThisMonth,
+      bookingsThisYear,
+      totalUsers,
+      pendingPayments,
+      todayRevenue,
+    ] = await prisma.$transaction([
+      // Today's confirmed bookings (on-court today)
+      prisma.booking.count({
+        where: {
+          date: { gte: today, lt: tomorrow },
+          status: { not: 'cancelled' },
+          bookingStatus: 'confirmed_booking',
+        },
+      }),
+      // All-time confirmed bookings
+      prisma.booking.count({ where: { bookingStatus: 'confirmed_booking' } }),
+      // This week
+      prisma.booking.count({
+        where: { bookingStatus: 'confirmed_booking', date: { gte: weekStart } },
+      }),
+      // This month
+      prisma.booking.count({
+        where: { bookingStatus: 'confirmed_booking', date: { gte: monthStart } },
+      }),
+      // This year
+      prisma.booking.count({
+        where: { bookingStatus: 'confirmed_booking', date: { gte: yearStart } },
+      }),
+      prisma.user.count({ where: { role: 'user' } }),
+      // Pending payment slips awaiting admin confirmation
+      prisma.booking.count({
+        where: { paymentStatus: 'submitted', bookingStatus: 'confirmed_booking' },
+      }),
+      prisma.booking.aggregate({
+        where: {
+          date: { gte: today, lt: tomorrow },
+          paymentStatus: { in: ['submitted', 'confirmed'] },
+          bookingStatus: 'confirmed_booking',
+        },
+        _sum: { totalPrice: true },
+      }),
+    ]);
 
     res.json({
       success: true,
       data: {
         todayBookings,
         totalBookings,
+        bookingsByPeriod: {
+          today: todayBookings,
+          week: bookingsThisWeek,
+          month: bookingsThisMonth,
+          year: bookingsThisYear,
+        },
         totalUsers,
-        activeCourts,
         pendingPayments,
         todayRevenue: todayRevenue._sum.totalPrice || 0,
       },
@@ -55,17 +92,23 @@ router.get('/dashboard', protect, adminAccess, async (req, res) => {
 });
 
 // @route   GET /api/admin/dashboard/today-bookings
-// @desc    Get today's detailed bookings
+// @desc    Get today's confirmed bookings for the dashboard table
 // @access  Admin
 router.get('/dashboard/today-bookings', protect, adminAccess, async (req, res) => {
   try {
+    await autoCompletePassedBookings();
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const bookings = await prisma.booking.findMany({
-      where: { date: { gte: today, lt: tomorrow }, status: { not: 'cancelled' } },
+      where: {
+        date: { gte: today, lt: tomorrow },
+        status: { not: 'cancelled' },
+        bookingStatus: 'confirmed_booking',
+      },
       include: {
         user: { select: { name: true, phone: true } },
         court: { select: { courtNumber: true, name: true } },
@@ -85,24 +128,64 @@ router.get('/dashboard/today-bookings', protect, adminAccess, async (req, res) =
 // ============================================================
 
 // @route   GET /api/admin/bookings
-// @desc    Get all bookings with filters (paginated)
+// @desc    Get all CONFIRMED bookings with filters (paginated).
+//          Provisional-only (unpaid draft) bookings are excluded.
+//          Fixes: search param, court filter key, period filter.
 // @access  Admin
 router.get('/bookings', protect, adminAccess, async (req, res) => {
   try {
-    const { page = 1, limit = 20, status, paymentStatus, date, courtId } = req.query;
+    await autoCompletePassedBookings();
+
+    const { page = 1, limit = 20, status, paymentStatus, date, period, court, courtId: courtIdParam, search } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const where = {};
+    // Only show bookings that have gone through the payment flow
+    const where = { bookingStatus: 'confirmed_booking' };
+
     if (status)        where.status = status;
     if (paymentStatus) where.paymentStatus = paymentStatus;
-    if (courtId)       where.courtId = courtId;
 
-    if (date) {
+    // Accept both 'court' (frontend key) and 'courtId' (legacy)
+    const resolvedCourtId = courtIdParam || court;
+    if (resolvedCourtId) where.courtId = resolvedCourtId;
+
+    // Period filter takes priority over a specific date
+    if (period) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      switch (period) {
+        case 'today':
+          where.date = { gte: today, lt: tomorrow };
+          break;
+        case 'week': {
+          const weekStart = new Date(today); weekStart.setDate(weekStart.getDate() - 6);
+          where.date = { gte: weekStart };
+          break;
+        }
+        case 'month':
+          where.date = { gte: new Date(today.getFullYear(), today.getMonth(), 1) };
+          break;
+        case 'year':
+          where.date = { gte: new Date(today.getFullYear(), 0, 1) };
+          break;
+        default:
+          break;
+      }
+    } else if (date) {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
       const nextDay = new Date(d);
       nextDay.setDate(nextDay.getDate() + 1);
       where.date = { gte: d, lt: nextDay };
+    }
+
+    // Text search across booking ID, user name, user phone
+    if (search) {
+      where.OR = [
+        { bookingId: { contains: search, mode: 'insensitive' } },
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { user: { phone: { contains: search, mode: 'insensitive' } } },
+      ];
     }
 
     const [results, total] = await prisma.$transaction([
@@ -132,7 +215,6 @@ router.get('/bookings', protect, adminAccess, async (req, res) => {
 
 // @route   PUT /api/admin/bookings/:id/confirm-payment
 // @desc    Admin confirms payment for a booking
-//          If booking has additionalAmountDue (coach upgrade), folds it into totalPrice on confirmation
 // @access  Admin
 router.put('/bookings/:id/confirm-payment', protect, adminAccess, async (req, res) => {
   try {
@@ -164,15 +246,15 @@ router.put('/bookings/:id/confirm-payment', protect, adminAccess, async (req, re
 });
 
 // @route   PUT /api/admin/bookings/:id/status
-// @desc    Update booking status (with credit refund on cancel)
+// @desc    Update booking status — admin cancel only (auto-complete handles completion)
 // @access  Admin
 router.put('/bookings/:id/status', protect, adminAccess, async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['upcoming', 'completed', 'cancelled', 'no_show'];
+    const validStatuses = ['cancelled'];
 
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status' });
+      return res.status(400).json({ success: false, message: 'Invalid status. Admin can only cancel bookings.' });
     }
 
     const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
@@ -180,63 +262,66 @@ router.put('/bookings/:id/status', protect, adminAccess, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    if (status === 'cancelled' && booking.status !== 'cancelled') {
-      // Apply the same refund logic as the user cancel route
-      let creditRefund = 0;
-      let newPaymentStatus = 'refunded';
-
-      if (booking.paymentStatus === 'pending') {
-        creditRefund = booking.creditUsed;
-        newPaymentStatus = 'refunded';
-      } else if (booking.paymentStatus === 'submitted') {
-        creditRefund = 0;
-        newPaymentStatus = 'pending_refund';
-      } else if (booking.paymentStatus === 'confirmed') {
-        creditRefund = booking.totalPrice + booking.creditUsed;
-        newPaymentStatus = 'refunded';
-      }
-
-      const ops = [
-        prisma.booking.update({
-          where: { id: req.params.id },
-          data: {
-            status: 'cancelled',
-            paymentStatus: newPaymentStatus,
-            cancelledAt: new Date(),
-          },
-        }),
-      ];
-
-      if (creditRefund > 0) {
-        ops.push(
-          prisma.user.update({
-            where: { id: booking.userId },
-            data: { credit: { increment: creditRefund } },
-          })
-        );
-      }
-
-      const [updatedBooking] = await prisma.$transaction(ops);
-
-      // Notify clients watching this court+date that the slot is free again
-      const dateKey = booking.date.toISOString().slice(0, 10);
-      getIO().to(`court:${booking.courtId}:${dateKey}`).emit('slot:cancelled', {
-        courtId: booking.courtId,
-        date: dateKey,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        userId: req.user.id,
-      });
-
-      return res.json({ success: true, data: updatedBooking });
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Booking already cancelled' });
     }
 
-    const updatedBooking = await prisma.booking.update({
-      where: { id: req.params.id },
-      data: { status },
+    // Determine refund based on current payment state
+    let creditRefund = 0;
+    let newPaymentStatus = 'refunded';
+
+    if (booking.paymentStatus === 'pending') {
+      creditRefund = booking.creditUsed;
+      newPaymentStatus = 'refunded';
+    } else if (booking.paymentStatus === 'submitted') {
+      creditRefund = 0;
+      newPaymentStatus = 'pending_refund';
+    } else if (booking.paymentStatus === 'confirmed') {
+      creditRefund = booking.totalPrice + booking.creditUsed;
+      newPaymentStatus = 'refunded';
+    }
+
+    const ops = [
+      prisma.booking.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'cancelled',
+          paymentStatus: newPaymentStatus,
+          cancelledAt: new Date(),
+        },
+      }),
+    ];
+
+    if (creditRefund > 0) {
+      ops.push(
+        prisma.user.update({
+          where: { id: booking.userId },
+          data: { credit: { increment: creditRefund } },
+        })
+      );
+    }
+
+    const [updatedBooking] = await prisma.$transaction(ops);
+
+    // Notify clients watching this court+date that the slot is free again
+    const dateKey = booking.date.toISOString().slice(0, 10);
+    getIO().to(`court:${booking.courtId}:${dateKey}`).emit('slot:cancelled', {
+      courtId: booking.courtId,
+      date: dateKey,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      userId: req.user.id,
     });
 
-    res.json({ success: true, data: updatedBooking });
+    return res.json({
+      success: true,
+      message: creditRefund > 0
+        ? `Booking cancelled. ฿${creditRefund} refunded as credits to user account.`
+        : newPaymentStatus === 'pending_refund'
+          ? 'Booking cancelled. Payment slip was submitted — process refund to return funds to user.'
+          : 'Booking cancelled.',
+      data: updatedBooking,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -318,7 +403,6 @@ router.put('/users/:id', protect, adminAccess, async (req, res) => {
 
 // ============================================================
 // BUSINESS SUMMARY — Master Admin only
-// Replaces all MongoDB $aggregate/$lookup/$group pipelines
 // ============================================================
 
 // @route   GET /api/admin/business-summary
@@ -341,17 +425,21 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    // 1. Revenue total
+    // 1. Revenue total — only confirmed bookings
     const revenueData = await prisma.booking.aggregate({
-      where: { createdAt: { gte: startDate }, paymentStatus: { in: ['submitted', 'confirmed'] } },
+      where: {
+        createdAt: { gte: startDate },
+        paymentStatus: { in: ['submitted', 'confirmed'] },
+        bookingStatus: 'confirmed_booking',
+      },
       _sum: { totalPrice: true },
       _count: { id: true },
     });
 
-    // 2. Bookings by status
+    // 2. Bookings by status — confirmed bookings only
     const bookingsByStatusRaw = await prisma.booking.groupBy({
       by: ['status'],
-      where: { createdAt: { gte: startDate } },
+      where: { createdAt: { gte: startDate }, bookingStatus: 'confirmed_booking' },
       _count: { status: true },
     });
     const bookingsByStatus = bookingsByStatusRaw.reduce((acc, curr) => {
@@ -362,7 +450,11 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
     // 3. Court utilization
     const courtGroups = await prisma.booking.groupBy({
       by: ['courtId'],
-      where: { createdAt: { gte: startDate }, status: { not: 'cancelled' } },
+      where: {
+        createdAt: { gte: startDate },
+        status: { not: 'cancelled' },
+        bookingStatus: 'confirmed_booking',
+      },
       _sum: { duration: true },
       _count: { courtId: true },
     });
@@ -385,6 +477,7 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
         createdAt: { gte: startDate },
         coachId: { not: null },
         status: { not: 'cancelled' },
+        bookingStatus: 'confirmed_booking',
       },
       _sum: { coachPrice: true },
       _count: { coachId: true },
@@ -408,7 +501,11 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
     // 6. Top customers
     const customerGroups = await prisma.booking.groupBy({
       by: ['userId'],
-      where: { createdAt: { gte: startDate }, status: { not: 'cancelled' } },
+      where: {
+        createdAt: { gte: startDate },
+        status: { not: 'cancelled' },
+        bookingStatus: 'confirmed_booking',
+      },
       _sum: { totalPrice: true },
       _count: { userId: true },
       orderBy: { _sum: { totalPrice: 'desc' } },
@@ -430,7 +527,7 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
     });
 
     // 7. Daily revenue — raw SQL for date-level grouping
-    const dailyRevenue = await prisma.$queryRaw`
+    const dailyRevenueRaw = await prisma.$queryRaw`
       SELECT
         DATE("date") AS day,
         SUM("totalPrice")::float AS revenue,
@@ -438,18 +535,24 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
       FROM "Booking"
       WHERE "createdAt" >= ${startDate}
         AND "paymentStatus" IN ('submitted', 'confirmed')
+        AND "bookingStatus" = 'confirmed_booking'
       GROUP BY DATE("date")
       ORDER BY day ASC
     `;
+
+    // Normalize the day field to an ISO date string for the frontend
+    const dailyRevenue = dailyRevenueRaw.map(r => ({
+      date: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day).slice(0, 10),
+      revenue: Number(r.revenue) || 0,
+      bookings: Number(r.bookings) || 0,
+    }));
 
     res.json({
       success: true,
       data: {
         period,
-        revenue: {
-          total: revenueData._sum.totalPrice || 0,
-          bookingCount: revenueData._count.id || 0,
-        },
+        totalRevenue: revenueData._sum.totalPrice || 0,
+        totalBookings: revenueData._count.id || 0,
         bookingsByStatus,
         courtUtilization,
         coachRevenue,
@@ -459,17 +562,13 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('Business summary error:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
 // @route   PUT /api/admin/bookings/:id/reassign-coach
-// @desc    Admin reassigns (or removes) the coach on an upcoming booking.
-//          Recalculates price and handles the financial difference:
-//            - Price increase  → additionalAmountDue set, paymentStatus→pending (user pays difference)
-//            - Price decrease  → difference refunded to user credit immediately
-//            - Same price      → just swaps coach, no financial change
-//            - Remove coach    → full coachPrice refunded to user credit
+// @desc    Admin reassigns (or removes) the coach on an upcoming booking
 // @access  Admin
 router.put('/bookings/:id/reassign-coach', protect, adminAccess, async (req, res) => {
   try {
@@ -499,7 +598,6 @@ router.put('/bookings/:id/reassign-coach', protect, adminAccess, async (req, res
       });
     }
 
-    // Calculate new coach price
     let newCoachPrice = 0;
     let newCoachId = null;
     let newOutsideCoachName = '';
@@ -517,10 +615,9 @@ router.put('/bookings/:id/reassign-coach', protect, adminAccess, async (req, res
       newCoachPrice = feeSetting ? Number(feeSetting.value) : 100;
       newOutsideCoachName = outsideCoachName || '';
     }
-    // else coachOption === 'none': newCoachPrice stays 0
 
     const originalCoachPrice = booking.coachPrice;
-    const difference = newCoachPrice - originalCoachPrice; // positive = user owes more; negative = refund
+    const difference = newCoachPrice - originalCoachPrice;
     const newSubtotal = booking.courtPrice + newCoachPrice + booking.addOnsTotal;
     const newCoachStatus = coachOption === 'none' ? 'cancelled' : 'changed';
 
@@ -537,17 +634,13 @@ router.put('/bookings/:id/reassign-coach', protect, adminAccess, async (req, res
     let responseMessage = '';
 
     if (booking.paymentStatus === 'confirmed') {
-      // Payment was already verified — apply financial difference
       if (difference > 0) {
-        // User owes more — request additional payment, no time limit
         ops[0] = prisma.booking.update({
           where: { id: req.params.id },
           data: { ...updateData, additionalAmountDue: difference, paymentStatus: 'pending' },
         });
         responseMessage = `Coach reassigned. User must pay an additional ฿${difference}.`;
-
       } else if (difference < 0) {
-        // New coach is cheaper — refund difference to user credit immediately
         const refundAmount = Math.abs(difference);
         ops[0] = prisma.booking.update({
           where: { id: req.params.id },
@@ -560,12 +653,10 @@ router.put('/bookings/:id/reassign-coach', protect, adminAccess, async (req, res
           })
         );
         responseMessage = `Coach reassigned. ฿${refundAmount} refunded to user's credit balance.`;
-
       } else {
         responseMessage = 'Coach reassigned. No price difference.';
       }
     } else {
-      // Payment not yet confirmed (pending) — just update coach info and recalculate prices
       ops[0] = prisma.booking.update({
         where: { id: req.params.id },
         data: {
@@ -600,10 +691,8 @@ router.put('/bookings/:id/reassign-coach', protect, adminAccess, async (req, res
 });
 
 // @route   PUT /api/admin/bookings/:id/process-refund
-// @desc    Admin processes a pending cash refund — returns totalPrice + creditUsed as credits to user
+// @desc    Admin processes a pending cash refund — returns funds as credits to user
 // @access  Admin
-// Only works when: status=cancelled AND paymentStatus=pending_refund
-// (booking was cancelled while payment slip had been submitted but not yet verified)
 router.put('/bookings/:id/process-refund', protect, adminAccess, async (req, res) => {
   try {
     const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
@@ -618,7 +707,6 @@ router.put('/bookings/:id/process-refund', protect, adminAccess, async (req, res
       });
     }
 
-    // Refund = actual cash paid (totalPrice) + credits that were previously deducted (creditUsed)
     const refundAmount = booking.totalPrice + booking.creditUsed;
 
     const [updatedBooking, updatedUser] = await prisma.$transaction([

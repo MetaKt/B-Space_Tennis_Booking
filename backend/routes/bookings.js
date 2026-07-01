@@ -26,6 +26,8 @@ const { protect, adminAccess } = require('../middleware/auth');
 const { getIO } = require('../lib/socket');
 const { getUploader, getFilePath, FILTERS } = require('../lib/storage');
 
+const { autoCompletePassedBookings } = require('../lib/bookingHelpers');
+
 const router = express.Router();
 
 // Payment slip upload — 10 MB limit, images + PDF
@@ -33,28 +35,6 @@ const upload = getUploader('payments', {
   prefix: 'payment',
   fileFilter: FILTERS.imagesPdf,
 });
-
-// Helper: mark any 'upcoming' bookings whose date+endTime has passed as 'completed'
-async function autoCompletePassedBookings() {
-  const now = new Date();
-  const todayUTC = new Date(now);
-  todayUTC.setUTCHours(0, 0, 0, 0);
-  const tomorrowUTC = new Date(todayUTC);
-  tomorrowUTC.setUTCDate(tomorrowUTC.getUTCDate() + 1);
-  const currentTimeStr = `${String(now.getUTCHours()).padStart(2, '0')}:00`;
-
-  await prisma.booking.updateMany({
-    where: {
-      status: 'upcoming',
-      bookingStatus: 'confirmed_booking', // expired provisionals are NOT completed; they're just ignored
-      OR: [
-        { date: { lt: todayUTC } },
-        { date: { gte: todayUTC, lt: tomorrowUTC }, endTime: { lte: currentTimeStr } },
-      ],
-    },
-    data: { status: 'completed' },
-  });
-}
 
 // Helper: generate human-readable booking ID (BK-XXXXXX)
 const BOOKING_ID_CHARSET = 'ABCDEFGHJKLMNPQRTUVWXYZ2346789';

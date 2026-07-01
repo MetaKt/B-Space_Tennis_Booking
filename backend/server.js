@@ -61,7 +61,17 @@ app.use(express.urlencoded({ extended: true }));
 // Note: express-mongo-sanitize removed (MongoDB-specific, not needed with PostgreSQL + Prisma)
 
 // Static files (uploads)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Mark as cross-origin so the frontend dev server (different port/origin) can load
+// images (payment slips, avatars, coach photos). Helmet's default
+// Cross-Origin-Resource-Policy is "same-origin", which otherwise blocks <img> loads.
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  },
+  express.static(path.join(__dirname, 'uploads'))
+);
 
 // _id alias — adds _id = id to all response objects for frontend compatibility
 app.use(aliasId);
