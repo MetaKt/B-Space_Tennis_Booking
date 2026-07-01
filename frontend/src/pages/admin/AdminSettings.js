@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { AdminLayout } from './AdminDashboard';
@@ -7,9 +7,12 @@ import { settingsAPI } from '../../utils/api';
 const AdminSettings = () => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('court_operations');
+  // settings: grouped as { category: { key: value } }
   const [settings, setSettings] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  // meta: key -> { label, description } so we don't clobber labels on save
+  const [meta, setMeta]         = useState({});
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
 
   useEffect(() => { fetchSettings(); }, []);
 
@@ -17,9 +20,22 @@ const AdminSettings = () => {
     setLoading(true);
     try {
       const res = await settingsAPI.getAll();
-      setSettings(res.data.data);
-    } catch (e) { toast.error('Failed to load settings'); }
-    finally { setLoading(false); }
+      // Backend returns a FLAT ARRAY of settings — group it by category for editing.
+      const arr = Array.isArray(res.data.data) ? res.data.data : [];
+      const grouped = {};
+      const metaMap = {};
+      arr.forEach((s) => {
+        if (!grouped[s.category]) grouped[s.category] = {};
+        grouped[s.category][s.key] = s.value;
+        metaMap[s.key] = { label: s.label, description: s.description };
+      });
+      setSettings(grouped);
+      setMeta(metaMap);
+    } catch (e) {
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -27,12 +43,22 @@ const AdminSettings = () => {
     try {
       const updates = [];
       Object.entries(settings).forEach(([category, items]) => {
+        // Skip add_ons — feature removed
+        if (category === 'add_ons') return;
         Object.entries(items).forEach(([key, value]) => {
-          updates.push({ key, value, category });
+          updates.push({
+            key,
+            value,
+            category,
+            label: meta[key]?.label || key,
+            description: meta[key]?.description || '',
+          });
         });
       });
       await settingsAPI.bulkUpdate(updates);
       toast.success(t('common.saved'));
+      // Re-fetch so local state matches what the server stored
+      fetchSettings();
     } catch (error) {
       toast.error('Failed to save settings');
     } finally {
@@ -41,198 +67,141 @@ const AdminSettings = () => {
   };
 
   const updateSetting = (category, key, value) => {
-    setSettings({
-      ...settings,
-      [category]: { ...settings[category], [key]: value }
-    });
+    setSettings((prev) => ({
+      ...prev,
+      [category]: { ...prev[category], [key]: value },
+    }));
   };
 
-  const updateAddOn = (key, field, value) => {
-    const current = settings.add_ons?.[key] || {};
-    updateSetting('add_ons', key, { ...current, [field]: field === 'price' ? parseFloat(value) || 0 : value });
-  };
-
+  // Only two tabs — Add-ons removed (client cancelled feature)
   const tabs = [
-    { key: 'court_operations', label: '⚙️ Court Operations' },
-    { key: 'add_ons', label: '🎾 Add-on Options' },
-    { key: 'payment', label: '💳 Payment' }
+    { key: 'court_operations', label: 'Court Operations' },
+    { key: 'payment',          label: 'Payment' },
   ];
 
   const inputStyle = {
-    width: '100%', padding: '10px 12px', borderRadius: '8px',
-    border: '1px solid var(--gray-200)', fontSize: '14px', outline: 'none', boxSizing: 'border-box'
+    width: '100%', padding: '10px 12px', borderRadius: '3px',
+    border: '1px solid #e5e7eb', fontSize: '14px', outline: 'none', boxSizing: 'border-box',
   };
 
-  const addOns = [
-    { key: 'ball_rental', label: 'Ball Rental', icon: '🎾' },
-    { key: 'racket_rental', label: 'Racket Rental', icon: '🏸' },
-    { key: 'towel', label: 'Towel', icon: '🧺' },
-    { key: 'water', label: 'Water', icon: '💧' },
-    { key: 'ball_machine', label: 'Ball Machine', icon: '🤖' }
-  ];
+  const labelStyle = {
+    fontSize: '13px', fontWeight: 600, color: '#6b7280',
+    display: 'block', marginBottom: '4px',
+  };
+
+  // Numeric input handler that tolerates empty/partial input without storing NaN
+  const onNumberChange = (category, key) => (e) => {
+    const raw = e.target.value;
+    updateSetting(category, key, raw === '' ? '' : (parseInt(raw, 10) || 0));
+  };
 
   return (
     <AdminLayout activePage="settings">
       <div style={{ padding: '28px 32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '26px', color: 'var(--green-900)' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 800, letterSpacing: '0.2px', textTransform: 'uppercase', color: '#061823' }}>
             {t('admin.settings')}
           </h2>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? t('common.loading') : `💾 ${t('common.save')}`}
+          <button
+            onClick={handleSave}
+            disabled={saving || loading}
+            style={{ padding: '10px 22px', border: 'none', background: '#073659', color: '#ffde17', borderRadius: '3px', cursor: saving || loading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.1px', textTransform: 'uppercase', opacity: saving || loading ? 0.6 : 1 }}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px' }}>
+        {/* Tab headers */}
+        <div style={{ display: 'flex', gap: '0', marginBottom: '0', borderBottom: '2px solid #e5e7eb' }}>
           {tabs.map((tab) => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
               style={{
-                padding: '10px 20px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer',
-                fontSize: '14px', fontWeight: 500,
-                background: activeTab === tab.key ? 'white' : 'var(--gray-100)',
-                color: activeTab === tab.key ? 'var(--green-800)' : 'var(--gray-500)',
-                borderBottom: activeTab === tab.key ? '2px solid var(--green-600)' : '2px solid transparent'
-              }}>
+                padding: '10px 22px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '0.1px',
+                textTransform: 'uppercase',
+                background: 'transparent',
+                color: activeTab === tab.key ? '#073659' : '#9ca3af',
+                borderBottom: activeTab === tab.key ? '2px solid #073659' : '2px solid transparent',
+                marginBottom: '-2px',
+                transition: 'all 0.15s',
+              }}
+            >
               {tab.label}
             </button>
           ))}
         </div>
 
         {loading ? (
-          <div className="loading-spinner"><div className="spinner" /></div>
+          <div className="loading-spinner" style={{ marginTop: '40px' }}><div className="spinner" /></div>
         ) : (
-          <div style={{
-            background: 'white', borderRadius: '12px', padding: '24px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid var(--gray-100)'
-          }}>
-            {/* Court Operations Tab */}
+          <div style={{ background: '#fff', borderRadius: '0 0 4px 4px', padding: '28px', boxShadow: '0 1px 4px rgba(6,24,35,0.08)', border: '1px solid #e5e7eb', borderTop: 'none' }}>
+
+            {/* Court Operations */}
             {activeTab === 'court_operations' && (
               <div style={{ maxWidth: '500px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>Booking Rules</h3>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '20px' }}>
+                  Booking Rules
+                </h3>
 
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Advance Booking Days (max days ahead users can book)
-                  </label>
-                  <input style={inputStyle} type="number"
-                    value={settings.booking_rules?.advance_booking_days || 14}
-                    onChange={(e) => updateSetting('booking_rules', 'advance_booking_days', parseInt(e.target.value))} />
-                </div>
+                {/* These four live in the `court_operations` category */}
+                {[
+                  { label: 'Advance Booking Days (max days ahead users can book)', key: 'booking_advance_days', default: 14 },
+                  { label: 'Minimum Booking Hours', key: 'min_booking_hours', default: 1 },
+                  { label: 'Maximum Booking Hours', key: 'max_booking_hours', default: 4 },
+                  { label: 'Cancellation Window (hours before booking)', key: 'cancellation_hours', default: 24 },
+                ].map(({ label, key, default: def }) => (
+                  <div key={key} style={{ marginBottom: '16px' }}>
+                    <label style={labelStyle}>{label}</label>
+                    <input
+                      style={inputStyle}
+                      type="number"
+                      value={settings.court_operations?.[key] ?? def}
+                      onChange={onNumberChange('court_operations', key)}
+                    />
+                  </div>
+                ))}
 
+                {/* Outside Coach Fee lives in the `booking_rules` category */}
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Minimum Booking Hours
-                  </label>
-                  <input style={inputStyle} type="number"
-                    value={settings.booking_rules?.min_booking_hours || 1}
-                    onChange={(e) => updateSetting('booking_rules', 'min_booking_hours', parseInt(e.target.value))} />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Maximum Booking Hours
-                  </label>
-                  <input style={inputStyle} type="number"
-                    value={settings.booking_rules?.max_booking_hours || 4}
-                    onChange={(e) => updateSetting('booking_rules', 'max_booking_hours', parseInt(e.target.value))} />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Cancellation Window (hours before booking)
-                  </label>
-                  <input style={inputStyle} type="number"
-                    value={settings.booking_rules?.cancellation_window_hours || 24}
-                    onChange={(e) => updateSetting('booking_rules', 'cancellation_window_hours', parseInt(e.target.value))} />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Outside Coach Fee (฿)
-                  </label>
-                  <input style={inputStyle} type="number"
-                    value={settings.booking_rules?.outside_coach_fee || 100}
-                    onChange={(e) => updateSetting('booking_rules', 'outside_coach_fee', parseInt(e.target.value))} />
+                  <label style={labelStyle}>Outside Coach Fee (฿)</label>
+                  <input
+                    style={inputStyle}
+                    type="number"
+                    value={settings.booking_rules?.outside_coach_fee ?? 100}
+                    onChange={onNumberChange('booking_rules', 'outside_coach_fee')}
+                  />
                 </div>
               </div>
             )}
 
-            {/* Add-ons Tab */}
-            {activeTab === 'add_ons' && (
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>Add-on Options</h3>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                  {addOns.map((addon) => {
-                    const data = settings.add_ons?.[addon.key] || { name: addon.label, price: 0, available: false };
-                    return (
-                      <div key={addon.key} style={{
-                        padding: '16px', borderRadius: '10px', border: '1px solid var(--gray-200)',
-                        background: data.available ? 'var(--green-50)' : 'var(--gray-50)'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                          <span style={{ fontSize: '15px', fontWeight: 600 }}>
-                            {addon.icon} {addon.label}
-                          </span>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                            <input type="checkbox" checked={data.available || false}
-                              onChange={(e) => updateAddOn(addon.key, 'available', e.target.checked)} />
-                            <span style={{ fontSize: '12px' }}>Enabled</span>
-                          </label>
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '12px', color: 'var(--gray-500)' }}>Price (฿)</label>
-                          <input style={inputStyle} type="number" value={data.price || ''}
-                            onChange={(e) => updateAddOn(addon.key, 'price', e.target.value)} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Payment Tab */}
+            {/* Payment */}
             {activeTab === 'payment' && (
               <div style={{ maxWidth: '500px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '20px' }}>Payment Information</h3>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '20px' }}>
+                  Payment Information
+                </h3>
 
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Bank Name
-                  </label>
-                  <input style={inputStyle}
-                    value={settings.payment?.payment_bank_name || ''}
-                    onChange={(e) => updateSetting('payment', 'payment_bank_name', e.target.value)} />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Account Number
-                  </label>
-                  <input style={inputStyle}
-                    value={settings.payment?.payment_account_number || ''}
-                    onChange={(e) => updateSetting('payment', 'payment_account_number', e.target.value)} />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Account Name
-                  </label>
-                  <input style={inputStyle}
-                    value={settings.payment?.payment_account_name || ''}
-                    onChange={(e) => updateSetting('payment', 'payment_account_name', e.target.value)} />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-500)', display: 'block', marginBottom: '4px' }}>
-                    Payment Instructions
-                  </label>
-                  <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3}
-                    value={settings.payment?.payment_instructions || ''}
-                    onChange={(e) => updateSetting('payment', 'payment_instructions', e.target.value)} />
-                </div>
+                {[
+                  { label: 'Bank Name', key: 'payment_bank_name' },
+                  { label: 'Account Number', key: 'payment_account_number' },
+                  { label: 'Account Name', key: 'payment_account_name' },
+                ].map(({ label, key }) => (
+                  <div key={key} style={{ marginBottom: '16px' }}>
+                    <label style={labelStyle}>{label}</label>
+                    <input
+                      style={inputStyle}
+                      value={settings.payment?.[key] || ''}
+                      onChange={(e) => updateSetting('payment', key, e.target.value)}
+                    />
+                  </div>
+                ))}
               </div>
             )}
           </div>

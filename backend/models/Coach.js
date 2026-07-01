@@ -39,10 +39,6 @@ const coachSchema = new mongoose.Schema({
     lowercase: true,
     default: ''
   },
-  avatar: {
-    type: String,
-    default: ''
-  },
   bio: {
     type: String,
     default: '',

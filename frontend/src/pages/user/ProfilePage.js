@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -9,7 +9,6 @@ const ProfilePage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user, updateUser, updateLanguage } = useAuth();
-  const fileInputRef = useRef(null);
 
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -20,7 +19,6 @@ const ProfilePage = () => {
     occupation: user?.occupation || ''
   });
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -40,32 +38,11 @@ const ProfilePage = () => {
     }
   };
 
-  const handleAvatarUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return toast.error('Max file size: 5MB');
-
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('avatar', file);
-      const res = await userAPI.uploadAvatar(formData);
-      updateUser({ avatar: res.data.data.avatar });
-      toast.success('Avatar updated');
-    } catch (error) {
-      toast.error('Failed to upload avatar');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'th' : 'en';
     i18n.changeLanguage(newLang);
     updateLanguage(newLang);
   };
-
-  const getInitials = (name) => name ? name.charAt(0).toUpperCase() : '?';
 
   const inputStyle = {
     width: '100%', padding: '12px 14px', borderRadius: '10px',
@@ -92,35 +69,13 @@ const ProfilePage = () => {
       </div>
 
       <div style={{ padding: '24px 20px' }}>
-        {/* Avatar */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            style={{
-              width: '90px', height: '90px', borderRadius: '50%', margin: '0 auto 10px',
-              background: user?.avatar ? 'none' : 'linear-gradient(135deg, var(--green-600), var(--green-800))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: user?.avatar ? '14px' : '32px', color: 'white', cursor: 'pointer',
-              overflow: 'hidden', border: '3px solid var(--green-200)',
-              position: 'relative'
-            }}
-          >
-            {user?.avatar ? (
-              <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              getInitials(user?.name)
-            )}
-            {uploading && (
-              <div style={{
-                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <div className="spinner" style={{ width: '24px', height: '24px' }} />
-              </div>
-            )}
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
-          <p style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{t('profile.tapToChange')}</p>
+        {/* Logo */}
+        <div style={{
+          background: 'var(--blue-700)', borderRadius: 'var(--radius-xl)',
+          padding: '22px', marginBottom: '28px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <img src="/B-Space_Logo_removedbg.png" alt="B·Space Tennis Club" style={{ width: '180px', maxWidth: '75%' }} />
         </div>
 
         {/* Phone (read-only) */}
@@ -181,7 +136,7 @@ const ProfilePage = () => {
             padding: '6px 16px', borderRadius: '20px', border: '1px solid var(--gray-200)',
             background: 'var(--gray-50)', cursor: 'pointer', fontSize: '13px', fontWeight: 500
           }}>
-            {i18n.language === 'en' ? '🇹🇭 ภาษาไทย' : '🇬🇧 English'}
+            {i18n.language === 'en' ? 'TH  ภาษาไทย' : 'EN  English'}
           </button>
         </div>
 

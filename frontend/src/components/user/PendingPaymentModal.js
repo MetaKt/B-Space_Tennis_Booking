@@ -6,6 +6,7 @@ import { bookingAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
 const PAYMENT_QR_IMAGE = '/QR_Code.png';
+const DOWNLOAD_QR_IMAGE = '/QR_Code_Full.jpg';
 
 const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
   const { t } = useTranslation();
@@ -106,7 +107,7 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
               borderRadius: '6px', padding: '8px 10px', marginBottom: '10px',
               fontSize: '12px', color: 'var(--amber-700)', fontWeight: 500
             }}>
-              🔄 {t('common.coach_changed')} — {t('common.additional_payment_due')}
+              {t('common.coach_changed')} — {t('common.additional_payment_due')}
             </div>
           )}
           <div className="slip-row" style={{ fontSize: '12px', padding: '6px 0' }}>
@@ -153,7 +154,7 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
               fontWeight: 600
             }}
           >
-            ⏰ {t('booking.paymentExpires')} {timeRemaining.mins}m {timeRemaining.secs}s
+            {t('booking.paymentExpires')} {timeRemaining.mins}m {timeRemaining.secs}s
           </div>
         )}
 
@@ -166,7 +167,7 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
             <img src={PAYMENT_QR_IMAGE} alt="Payment QR" style={{ width: '140px', height: '140px', objectFit: 'contain', display: 'block', margin: '8px auto' }} />
           ) : (
             <div className="qr-placeholder" style={{ width: '140px', height: '140px', margin: '8px auto', fontSize: '40px' }}>
-              📱
+              QR
             </div>
           )}
           <p style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '6px', textAlign: 'center' }}>
@@ -174,16 +175,16 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
           </p>
           {PAYMENT_QR_IMAGE ? (
             <a
-              href={PAYMENT_QR_IMAGE}
-              download="payment-qr.png"
+              href={DOWNLOAD_QR_IMAGE}
+              download="B-Space.payment-qr.png"
               className="btn btn-outline"
               style={{ display: 'block', marginTop: '8px', fontSize: '12px', padding: '5px 16px', textDecoration: 'none', textAlign: 'center' }}
             >
-              ⬇ Download QR
+              Download QR
             </a>
           ) : (
             <button className="btn btn-outline" disabled style={{ display: 'block', width: '100%', marginTop: '8px', fontSize: '12px', padding: '5px 16px', opacity: 0.45 }}>
-              ⬇ Download QR
+              Download QR
             </button>
           )}
         </div>
@@ -223,7 +224,7 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
             onClick={() => document.getElementById('payment-slip-input')?.click()}
             style={{ padding: '16px', marginTop: '8px', borderRadius: '0', border: '2px dashed var(--gray-300)', cursor: 'pointer' }}
           >
-            <div className="file-upload-icon" style={{ fontSize: '28px', marginBottom: '6px' }}>📸</div>
+            <div className="file-upload-icon" style={{ fontSize: '28px', marginBottom: '6px' }}></div>
             <div className="file-upload-text" style={{ fontSize: '12px', color: 'var(--gray-600)' }}>
               {paymentSlip ? paymentSlip.name : t('booking.selectFile')}
             </div>
@@ -255,7 +256,7 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
                     color: 'var(--gray-600)'
                   }}
                 >
-                  📄 {paymentSlip.name}
+                  {paymentSlip.name}
                 </div>
               )}
             </div>
@@ -277,7 +278,7 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
             disabled={(effectiveAmountDue > 0 && !paymentSlip) || submitting}
             style={{ flex: 1, padding: '10px 16px', fontSize: '13px' }}
           >
-            {submitting ? t('common.loading') : effectiveAmountDue === 0 ? '✓ Confirm with Credits' : t('booking.submit')}
+            {submitting ? t('common.loading') : effectiveAmountDue === 0 ? 'Confirm with Credits' : t('booking.submit')}
           </button>
         </div>
       </div>

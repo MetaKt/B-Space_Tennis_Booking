@@ -13,7 +13,7 @@ const resources = {
         email: 'Email (optional)',
         age: 'Age (optional)',
         gender: 'Gender (optional)',
-        dob: 'Date of Birth (optional)',
+        dateOfBirth: 'Date of Birth (optional)',
         occupation: 'Occupation (optional)',
         enterPhone: 'Enter your phone number',
         enterName: 'Enter your full name',
@@ -32,14 +32,14 @@ const resources = {
         other: 'Other'
       },
       home: {
-        welcome: 'Welcome',
+        welcome: 'Welcome !',
         credit: 'Credit Balance',
         bookNow: 'Book Now',
         upcoming: 'Upcoming Bookings',
         noUpcoming: 'No upcoming bookings',
         personalInfo: 'Personal Info',
         bookingHistory: 'Booking History',
-        changeLang: 'Language'
+        language: 'Language'
       },
       booking: {
         title: 'Book a Court',
@@ -75,9 +75,10 @@ const resources = {
         uploadSlip: 'Upload Payment Slip',
         scanQr: 'Scan QR Code to Pay',
         submit: 'Submit Payment',
-        success: 'Booking Successful!',
+        bookingSuccess: 'Booking Successful!',
+        bookingSuccessMsg: 'Your booking has been successfully created. Please keep your booking ID for reference.',
         bookingId: 'Booking ID',
-        returnHome: 'Return to Home',
+        backToHome: 'Return to Home',
         perHour: '/hr',
         selectTimeSlots: 'Select consecutive time slots',
         baht: '฿',
@@ -151,6 +152,7 @@ const resources = {
         noData: 'No data available',
         status: 'Status',
         actions: 'Actions',
+        all: 'All',
         upcoming: 'Upcoming',
         completed: 'Completed',
         cancelled: 'Cancelled',
@@ -181,7 +183,7 @@ const resources = {
         email: 'อีเมล (ไม่บังคับ)',
         age: 'อายุ (ไม่บังคับ)',
         gender: 'เพศ (ไม่บังคับ)',
-        dob: 'วันเกิด (ไม่บังคับ)',
+        dateOfBirth: 'วันเกิด (ไม่บังคับ)',
         occupation: 'อาชีพ (ไม่บังคับ)',
         enterPhone: 'กรอกเบอร์โทรศัพท์',
         enterName: 'กรอกชื่อ-นามสกุล',
@@ -200,14 +202,14 @@ const resources = {
         other: 'อื่นๆ'
       },
       home: {
-        welcome: 'ยินดีต้อนรับ',
+        welcome: 'ยินดีต้อนรับ !',
         credit: 'เครดิตคงเหลือ',
         bookNow: 'จองเลย',
         upcoming: 'การจองที่กำลังจะมาถึง',
         noUpcoming: 'ไม่มีการจองที่กำลังจะมาถึง',
         personalInfo: 'ข้อมูลส่วนตัว',
         bookingHistory: 'ประวัติการจอง',
-        changeLang: 'ภาษา'
+        language: 'ภาษา'
       },
       booking: {
         title: 'จองสนาม',
@@ -243,7 +245,9 @@ const resources = {
         uploadSlip: 'อัพโหลดสลิปการชำระเงิน',
         scanQr: 'สแกน QR Code เพื่อชำระเงิน',
         submit: 'ส่งหลักฐานการชำระเงิน',
-        success: 'จองสำเร็จ!',
+        bookingSuccess: 'การจองสำเร็จ!',
+        bookingSuccessMsg: 'การจองของคุณสำเร็จแล้ว กรุณาเก็บรหัสการจองของคุณไว้เพื่ออ้างอิง',
+        backToHome: 'กลับหน้าหลัก',
         bookingId: 'รหัสการจอง',
         returnHome: 'กลับหน้าหลัก',
         perHour: '/ชม.',
@@ -319,6 +323,7 @@ const resources = {
         noData: 'ไม่มีข้อมูล',
         status: 'สถานะ',
         actions: 'การดำเนินการ',
+        all: 'ทั้งหมด',
         upcoming: 'กำลังจะมาถึง',
         completed: 'เสร็จสิ้น',
         cancelled: 'ยกเลิกแล้ว',

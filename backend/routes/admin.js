@@ -7,6 +7,16 @@ const { autoCompletePassedBookings } = require('../lib/bookingHelpers');
 
 const router = express.Router();
 
+// Booking.date is a @db.Date column — Prisma always represents it as UTC midnight
+// for the calendar date, regardless of server timezone. Building "today" from local
+// setHours(0,0,0,0) instead produces a UTC instant offset by the server's timezone,
+// which silently excludes same-day bookings whenever the server runs ahead of UTC
+// (e.g. Thailand, UTC+7). Use UTC-based boundaries so they line up with the column.
+function todayUTC() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+}
+
 // ============================================================
 // DASHBOARD
 // ============================================================
@@ -16,12 +26,11 @@ const router = express.Router();
 // @access  Admin
 router.get('/dashboard', protect, adminAccess, async (req, res) => {
   try {
-    const now = new Date();
-    const today = new Date(now); today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-    const weekStart = new Date(today); weekStart.setDate(weekStart.getDate() - 6);
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const yearStart = new Date(today.getFullYear(), 0, 1);
+    const today = todayUTC();
+    const tomorrow = new Date(today); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const weekStart = new Date(today); weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+    const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+    const yearStart = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
 
     const [
       todayBookings,
@@ -98,10 +107,9 @@ router.get('/dashboard/today-bookings', protect, adminAccess, async (req, res) =
   try {
     await autoCompletePassedBookings();
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = todayUTC();
     const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
     const bookings = await prisma.booking.findMany({
       where: {
@@ -151,31 +159,30 @@ router.get('/bookings', protect, adminAccess, async (req, res) => {
 
     // Period filter takes priority over a specific date
     if (period) {
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const today = todayUTC();
+      const tomorrow = new Date(today); tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
       switch (period) {
         case 'today':
           where.date = { gte: today, lt: tomorrow };
           break;
         case 'week': {
-          const weekStart = new Date(today); weekStart.setDate(weekStart.getDate() - 6);
+          const weekStart = new Date(today); weekStart.setUTCDate(weekStart.getUTCDate() - 6);
           where.date = { gte: weekStart };
           break;
         }
         case 'month':
-          where.date = { gte: new Date(today.getFullYear(), today.getMonth(), 1) };
+          where.date = { gte: new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)) };
           break;
         case 'year':
-          where.date = { gte: new Date(today.getFullYear(), 0, 1) };
+          where.date = { gte: new Date(Date.UTC(today.getUTCFullYear(), 0, 1)) };
           break;
         default:
           break;
       }
     } else if (date) {
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
+      const d = new Date(date + 'T00:00:00Z');
       const nextDay = new Date(d);
-      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
       where.date = { gte: d, lt: nextDay };
     }
 

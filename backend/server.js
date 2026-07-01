@@ -33,7 +33,10 @@ app.use(helmet());
 // Development: allow localhost. Production: only the deployed frontend origin.
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [process.env.FRONTEND_URL].filter(Boolean)
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  : [
+      'http://localhost:3000', 'http://127.0.0.1:3000',
+      'http://localhost:3001', 'http://127.0.0.1:3001',
+    ];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -62,7 +65,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Static files (uploads)
 // Mark as cross-origin so the frontend dev server (different port/origin) can load
-// images (payment slips, avatars, coach photos). Helmet's default
+// images (payment slips). Helmet's default
 // Cross-Origin-Resource-Policy is "same-origin", which otherwise blocks <img> loads.
 app.use(
   '/uploads',
@@ -77,7 +80,7 @@ app.use(
 app.use(aliasId);
 
 // Ensure upload directories exist
-['uploads/avatars', 'uploads/payments', 'uploads/coaches'].forEach(dir => {
+['uploads/payments'].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 

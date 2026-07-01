@@ -2,12 +2,8 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const { protect, adminAccess } = require('../middleware/auth');
-const { getUploader, getFilePath } = require('../lib/storage');
 
 const router = express.Router();
-
-// Coach avatar upload — 5 MB limit, no format restriction (admin-only route)
-const upload = getUploader('coaches', { prefix: 'coach', maxSize: 5 * 1024 * 1024 });
 
 // @route   GET /api/coaches
 // @desc    Get all coaches
@@ -205,29 +201,6 @@ router.put('/:id', protect, adminAccess, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Coach not found' });
     }
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-});
-
-// @route   POST /api/coaches/:id/avatar
-// @desc    Upload coach avatar
-// @access  Admin
-router.post('/:id/avatar', protect, adminAccess, upload.single('avatar'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'Please upload an image' });
-    }
-
-    const coach = await prisma.coach.update({
-      where: { id: req.params.id },
-      data: { avatar: getFilePath('coaches', req.file.filename) },
-    });
-
-    res.json({ success: true, data: { avatar: coach.avatar } });
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, message: 'Coach not found' });
-    }
-    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

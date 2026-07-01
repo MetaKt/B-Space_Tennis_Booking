@@ -1,9 +1,13 @@
 # Product Requirements Document
 ## Tennis Court Booking Platform
 
-**Version:** 1.2
-**Date:** 2026-05-26
+**Version:** 1.4
+**Date:** 2026-06-16
 **Status:** In Development
+
+**v1.4 changes:** Admin panel finalized. Add-ons feature removed (client cancelled — Settings Add-ons tab removed, BookingFlowPage add-on UI removed, `addOns: []` sent to backend as backward-compat stub). Admin bookings list now excludes provisional bookings (`bookingStatus = confirmed_booking` filter). Past bookings auto-completed lazily on each admin fetch (no cron job needed). Admin booking actions reduced to Cancel only (Complete and No Show removed). Admin dashboard Total Bookings card gets period toggle (today/week/month/year). Admin pages now poll every 30 seconds for near-real-time data while Socket.IO is not yet live on the server; Socket.IO upgrade is a deployment step (see §9). Business Summary: fixed data mapping, added CSV export, yellow bar chart. Court Management: surface field removed. Coach Management: rating column removed.
+
+**v1.3 changes:** Full visual rebrand applied. Brand identity adopted from client: B·Space Tennis Club — navy (#073659), yellow (#ffde17), cream (#fbf6f0), deep navy (#061823). Typography upgraded to "Barlow Condensed" (sport display font) for all headings, buttons, and key labels; DM Sans retained for body text. UI shapes sharpened (smaller border radius), CTA buttons styled with uppercase + letter-spacing for sport/premium feel. Logo PNG integrated on auth pages. Payment QR image wired in. See section 13 (Design System) and section 14.
 
 **v1.2 changes:** Security hardening complete (Helmet, CORS lockdown, rate limiting, OTP brute-force attempt tracking). ThaiBulkSMS API v2 SMS integration complete — OTP now delivered via real SMS. Deployment architecture decided (Vercel + Railway + Supabase). Redis explicitly decided against (PostgreSQL SSI + provisional system already solves slot conflicts). Tech stack section expanded with architecture diagram. See sections 4, 12, 14, 15, 16.
 
@@ -77,7 +81,7 @@ The system is built locally and intended to be deployed to Supabase (PostgreSQL 
 ## 5. User-Facing Features
 
 ### 5.1 Home Page (`/`)
-- Greeting with user's name and avatar (initials fallback).
+- Greeting with the B·Space logo and the user's name.
 - **Credit balance card** — displays available booking credits in Thai Baht (฿).
 - **Book Now** button — primary CTA, navigates to `/book`.
 - **Upcoming bookings list** — two card types render here:
@@ -154,7 +158,6 @@ The system is built locally and intended to be deployed to Supabase (PostgreSQL 
 
 ### 5.5 Profile Page (`/profile`)
 - Edit name, email, age, gender, date of birth, occupation.
-- Upload avatar photo.
 - View credit balance.
 - Language preference setting.
 
@@ -166,39 +169,45 @@ All admin pages share a sidebar layout with: Dashboard, Bookings, Courts, Coache
 
 ### 6.1 Admin Dashboard (`/admin`)
 **Stats cards:**
-- Today's bookings count
-- Total bookings (all time)
-- Total users
-- Active courts
-- Pending payments count
-- Today's revenue
+- Today's bookings count (confirmed bookings only)
+- Total bookings — single card with period toggle chips: Today / This Week / This Month / This Year (counts switch without a page reload; all four period counts are fetched in one request)
+- Total users (all registered accounts)
+- Pending payments count (paymentStatus = submitted, awaiting admin confirmation)
+- Today's revenue (master_admin only)
 
-**Today's Bookings table:** Booking ID, user name, court number, time, booking status, payment status, total price.
+All stat cards are clickable and deep-link to the Bookings page with a pre-applied filter.
+
+A yellow banner appears when there are payment slips awaiting review.
+
+**Today's Bookings table:** Booking ID, user name, court number, time, booking status, payment status, total price. Auto-refreshes every 30 seconds (see §9.2). Lazy auto-complete runs on each fetch — past bookings whose session has ended are marked `completed` before results are returned.
 
 ### 6.2 Booking Management (`/admin/bookings`)
-- Paginated table (15 per page) of all bookings.
-- **Filters:** Search (booking ID / user name / phone), booking status, payment status, court, date.
+- Paginated table (15 per page) of **confirmed bookings only** (`bookingStatus = confirmed_booking`). Provisional/unpaid reservations are excluded.
+- Lazy auto-complete: past bookings whose session has ended are marked `completed` before results are returned (no cron job required).
+- **Filters:** Search (booking ID / user name / phone), payment status, court, period toggle (All Time / Today / This Week / This Month / This Year).
+- Rows with `paymentStatus = submitted` are highlighted in yellow (`row-needs-action` CSS class) so admins spot them immediately.
+- Payment slip preview: clicking the slip thumbnail opens an inline modal (no new tab) showing booking details, the slip image, and a one-click Confirm button.
+- Auto-refreshes every 30 seconds (see §9.2).
 - **Per-booking actions:**
-  - **Confirm Payment** — appears when `paymentStatus = submitted`; clicking changes it to `confirmed`. Admin can view the payment slip image link before confirming.
+  - **Confirm Payment** — appears when `paymentStatus = submitted`; clicking changes it to `confirmed`. Slip can be previewed inline before confirming.
   - **Process Refund** — appears when `status = cancelled` and `paymentStatus = pending_refund`; adds the full amount (cash paid + credits used) back to user's credit balance.
   - **Reassign Coach** — appears for upcoming bookings not awaiting payment. Admin can change the coach assignment (none / in-house / outside). The system calculates the price difference:
     - If new coach is more expensive and payment was already confirmed: `additionalAmountDue` is set on the booking and the user sees a "Pay Difference" button.
     - If new coach is cheaper: the difference is automatically refunded to user's credit.
     - `coachStatus` is updated to `changed` for the user's reference.
-  - **Complete** — marks booking as `completed` (for after the session ends).
-  - **Cancel** — marks booking as `cancelled`.
-  - **No Show** — marks booking as `no_show`.
+  - **Cancel** — marks booking as `cancelled` and triggers the appropriate refund flow based on payment state. (Complete and No Show removed — sessions are auto-completed via the lazy backend pattern.)
 
 ### 6.3 Court Management (`/admin/courts`)
 - View, create, edit, and soft-delete courts.
-- Court fields: court number (unique), name, description, surface type (hard/clay/grass/synthetic), price per hour, open time, close time, image.
+- Court fields: court number (unique), name, description, price per hour, open time, close time.
+- Surface type field removed from UI (still exists in the database schema but is not exposed to admins or users).
 - Soft-delete: courts are marked `isActive = false` instead of being permanently deleted.
 
 ### 6.4 Coach Management (`/admin/coaches`)
 - View, create, edit, and soft-delete coaches.
-- Coach fields: name, nickname, phone, email, bio, specialization tags (beginner/intermediate/advanced/kids/competition/fitness/strategy), certifications (free text array), years of experience, price per hour, price per session, rating, total reviews, in-house flag, max daily bookings, notes.
+- Coach fields: name, nickname, phone, email, bio, specialization tags (beginner/intermediate/advanced/kids/competition/fitness/strategy), certifications (free text array), years of experience, price per hour, in-house flag, max daily bookings, notes.
+- Rating column removed from the admin table view (rating data still exists in the database).
 - Coach availability: set weekly schedule per day-of-week with start/end times (used to filter available coaches during booking).
-- Upload coach avatar photo.
 - View coach stats (bookings per month, revenue).
 
 ### 6.5 User Management (`/admin/users`)
@@ -208,6 +217,8 @@ All admin pages share a sidebar layout with: Dashboard, Bookings, Courts, Coache
 
 ### 6.6 Settings (`/admin/settings`)
 
+Two tabs: **Court Operations** and **Payment**. Add-ons tab removed (feature cancelled by client).
+
 **Court Operations tab (booking rules):**
 | Setting | Default | Description |
 |---|---|---|
@@ -216,9 +227,6 @@ All admin pages share a sidebar layout with: Dashboard, Bookings, Courts, Coache
 | `max_booking_hours` | 4 | Maximum slot selection per booking |
 | `cancellation_window_hours` | 24 | Hours before booking that cancellation is allowed |
 | `outside_coach_fee` | ฿100 | Facility fee charged when user brings an outside coach |
-
-**Add-ons tab:**
-Enable/disable and price each add-on: Ball Rental, Racket Rental, Towel, Water, Ball Machine.
 
 **Payment tab:**
 Bank name, account number, account name, payment instructions — displayed to users on the payment step QR screen.
@@ -288,9 +296,11 @@ If `Total Due = 0`, no payment slip is required — booking is confirmed immedia
 
 ---
 
-## 9. Real-Time Features (Socket.IO)
+## 9. Real-Time Features
 
-The frontend already connects to a Socket.IO server and handles real-time slot events during booking. When a user is on the booking page with a court and date selected:
+### 9.1 Booking Page — Socket.IO (slot availability)
+
+The frontend connects to a Socket.IO server and handles real-time slot events during booking. When a user is on the booking page with a court and date selected:
 
 - The client joins a room: `join:court` with `{ courtId, date }`.
 - When another user books a slot: `slot:booked` event → mark slot unavailable + deselect if already selected.
@@ -298,6 +308,33 @@ The frontend already connects to a Socket.IO server and handles real-time slot e
 - Client leaves the room on navigation away.
 
 **Status:** Backend Socket.IO emission complete. Every emitted event includes the originating `userId` so the originating browser can skip its own event (otherwise its own selection would be cleared client-side when it creates its own provisional). Emitted from: `POST /api/bookings` (slot:booked), `PUT /api/bookings/:id/cancel` (slot:cancelled), `PUT /api/admin/bookings/:id/status` when status='cancelled' (slot:cancelled).
+
+### 9.2 Admin Panel — 30-Second Polling (interim)
+
+Admin Dashboard and Admin Booking Management pages poll the backend **every 30 seconds** using `setInterval` + `useCallback` to keep data near-real-time without requiring Socket.IO to be active. The pattern:
+
+```js
+const fetchData = useCallback(async () => { /* ... */ }, [deps]);
+useEffect(() => {
+  fetchData();
+  const interval = setInterval(fetchData, 30_000);
+  return () => clearInterval(interval); // clean up on unmount
+}, [fetchData]);
+```
+
+This is the **interim solution** until Socket.IO is configured and live on the production server.
+
+### 9.3 Admin Panel — Socket.IO Upgrade (deployment step)
+
+When deploying to Railway + Supabase, enable the Socket.IO upgrade on the admin panel as follows:
+
+1. **Confirm Socket.IO server is running** — verify `server.js` initializes Socket.IO and that Railway's port is exposed (Socket.IO requires a persistent connection, not serverless).
+2. **Admin Dashboard:** Replace `setInterval` polling with `socket.on('booking:new', ...)` and `socket.on('payment:submitted', ...)` event handlers that trigger a targeted data refresh.
+3. **Admin Bookings:** Replace polling with `socket.on('booking:updated', ...)` to push row updates in-place without a full table reload.
+4. **Emit from backend** — add `socket.emit('booking:new', { booking })` inside `POST /api/bookings/confirm-payment` and `POST /api/bookings/:id/payment-slip` routes so admins see new confirmed bookings and payment slips the moment they arrive.
+5. **Remove `setInterval`** polling from both admin pages once Socket.IO is confirmed stable in production.
+
+> Until step 5 is complete, leave the 30-second polling in place as a fallback.
 
 ---
 
@@ -321,9 +358,9 @@ The frontend already connects to a Socket.IO server and handles real-time slot e
 | Prefix | Route File | Purpose |
 |---|---|---|
 | `/api/auth` | routes/auth.js | register, login, verify-otp, resend-otp, me, refresh, logout |
-| `/api/users` | routes/users.js | profile update, avatar upload, credit query, language preference |
+| `/api/users` | routes/users.js | profile update, credit query, language preference |
 | `/api/courts` | routes/courts.js | CRUD, soft-delete |
-| `/api/coaches` | routes/coaches.js | CRUD, avatar upload, availability schedule, monthly stats |
+| `/api/coaches` | routes/coaches.js | CRUD, availability schedule, monthly stats |
 | `/api/bookings` | routes/bookings.js | available slots, available coaches, create (with optional `replacePreviousId` for atomic swap), confirm-payment (accepts coach+addons; server re-derives prices), payment-slip, upcoming (filters expired provisionals), history (confirmed only), cancel |
 | `/api/admin` | routes/admin.js | dashboard, today-bookings, bookings (full list + filters), confirm-payment, update-status, process-refund, reassign-coach, users, business-summary |
 | `/api/settings` | routes/settings.js | get all, get public (no auth), update, bulk-upsert, delete |
@@ -373,7 +410,7 @@ graph TD
 
     subgraph Storage["Supabase (Cloud)"]
         DB[(PostgreSQL\nDatabase)]
-        FILES["Supabase Storage\nPayment slips, Avatars"]
+        FILES["Supabase Storage\nPayment slips"]
     end
 
     SMS["ThaiBulkSMS\nAPI v2\n(OTP delivery)"]
@@ -396,7 +433,59 @@ graph TD
 
 ---
 
-## 13. Internationalization (i18n)
+## 13. Design System (v1.3)
+
+**Brand:** B·Space Tennis Club. Mood & tone: fun, sporty, energetic, premium. Must NOT look AI-generated or like a generic template.
+
+### Color Palette
+
+| Token | Hex | Usage |
+|---|---|---|
+| Primary Navy | `#073659` | Headers, navbars, primary buttons, key UI structure |
+| Deep Navy | `#061823` | Dark sections, text on yellow buttons, admin sidebar |
+| Energy Yellow | `#ffde17` | CTA buttons, selected states, accent highlights, brand stripes |
+| Cream | `#fbf6f0` | Page backgrounds, card backgrounds, warm neutral |
+| White | `#ffffff` | Text on navy backgrounds only |
+
+CSS variables in `frontend/src/index.css` map the legacy `--green-*` token names to the navy palette and `--gold-*` to the yellow palette — zero refactor needed in component code.
+
+### Typography
+
+| Font | Family | Usage |
+|---|---|---|
+| Display | Barlow Condensed (700–900) | All headings, page titles, button labels, big numbers, section titles, status badges |
+| Body | DM Sans (400–700) | Body text, form inputs, descriptions |
+| Serif | Instrument Serif | Reserved for special accents only |
+
+All CTA buttons and section labels use `text-transform: uppercase` + `letter-spacing: 1.5px–3px` for sport branding.
+
+### Shape Language
+
+- Border radius reduced across the board (`8px` → `4px`, `16px` → `6px`, `24px` → `8px`) — sharp corners convey confidence and premium athletic feel.
+- 4px yellow left stripe used to indicate selected cards (courts, coaches, booking history).
+- 3px yellow bottom border on dark headers as brand accent.
+- Heavy CTA buttons use bottom border-shadow for tactile "press" feel.
+
+### Logo
+
+- File: `frontend/public/B-Space_Logo_removedbg.png`
+- Used on `LoginPage` and `RegisterPage` (above the auth card on navy background).
+- Cream-on-navy contrast.
+
+### Payment QR
+
+- File: `frontend/public/QR_Code.png` (display) + `QR_Code_FULL.jpg` (downloadable full version).
+- Wired into `BookingFlowPage.js` Step 2 and `PendingPaymentModal.js`.
+
+### Signature UI Patterns
+
+- **Scoreboard typography:** small uppercase label + huge bold number — used for credit balance, total amounts, coach prices.
+- **Yellow active indicator:** step dots, tab underlines, time slot selection — yellow always means "your current selection".
+- **Bottom-border pressed effect:** primary CTA buttons (`btn-gold`, `book-now-btn`) have a darker bottom border that compresses on `:active` — feels physical.
+
+---
+
+## 14. Internationalization (i18n)
 
 - Two languages: English (`en`) and Thai (`th`).
 - Language preference stored on the user record (`preferredLanguage`).
@@ -405,15 +494,15 @@ graph TD
 
 ---
 
-## 14. Current Implementation Status
+## 15. Current Implementation Status
 
 ### Complete
 - [x] Full database migration: MongoDB/Mongoose → PostgreSQL/Prisma
 - [x] All 7 database tables created and seeded
 - [x] Auth routes: register, login, OTP verify/resend, me, refresh, logout
-- [x] All user routes (profile, avatar, credit, language)
+- [x] All user routes (profile, credit, language)
 - [x] All court routes (CRUD, soft-delete)
-- [x] All coach routes (CRUD, avatar, schedule, stats)
+- [x] All coach routes (CRUD, schedule, stats)
 - [x] All booking routes (slots, coaches, create, confirm, slip, upcoming, history, cancel)
 - [x] All admin routes (dashboard, bookings management, users, business summary)
 - [x] Settings routes (CRUD, bulk upsert, public endpoint)
@@ -450,15 +539,28 @@ graph TD
 - [x] **`imagesPdf` MIME hardening** — `lib/storage.js` filter now checks both file extension AND `mimetype` (previously extension-only)
 - [x] **`.gitignore`** — covers `node_modules`, `.env`, `uploads/`, build output, editor files, OS files
 
+### Complete (v1.4 additions)
+- [x] **Admin panel finalized** — all 7 admin pages implemented (Dashboard, Bookings, Courts, Coaches, Users, Settings, Business Summary)
+- [x] **Add-ons removed** — Settings Add-ons tab removed, BookingFlowPage add-on UI removed
+- [x] **Admin bookings filter** — only `confirmed_booking` shown; provisional bookings excluded
+- [x] **Lazy auto-complete** — `autoCompletePassedBookings()` runs on each admin bookings/today-bookings fetch
+- [x] **Period toggle** — Dashboard Total Bookings card + Admin Bookings page use period chips instead of date picker
+- [x] **30-sec polling** — Dashboard and Bookings pages refresh every 30 seconds
+- [x] **Cancel-only actions** — Complete and No Show removed from admin booking actions
+- [x] **Payment slip inline preview** — modal in Admin Bookings for viewing slip before confirming
+- [x] **Business Summary** — data mapping fixed, CSV export added, yellow bar chart
+- [x] **Court Management** — surface field removed from table and modal
+- [x] **Coach Management** — rating column removed from table
+
 ### Pending / In Progress
-- [ ] **QR code image** — `PAYMENT_QR_IMAGE = null` in `PendingPaymentModal.js`; wire to static asset or settings once the QR image is available
+- [ ] **Socket.IO deployment upgrade** — see §9.3 for step-by-step instructions; 30-sec polling is the interim
 - [ ] **File storage (cloud)** — currently local filesystem (`backend/uploads/`); migrate to Supabase Storage before production — only `lib/storage.js` needs to change (`getUploader` + `getFilePath`)
-- [ ] **Admin panel** — full admin UI not yet built (backend routes complete; frontend pages pending)
 - [ ] **Supabase migration** — swap `DATABASE_URL` to Supabase PostgreSQL URI when ready to deploy; run `prisma migrate deploy`
+- [ ] **ThaiBulkSMS sender name** — change from `"Demo"` to approved sender name before go-live (set `THAIBULKSMS_SENDER` in `.env`)
 
 ---
 
-## 15. Known Issues & Watch Points
+## 16. Known Issues & Watch Points
 
 | Issue | Detail |
 |---|---|
@@ -468,12 +570,12 @@ graph TD
 | `psql` not in PATH | Use full path: `C:\Program Files\PostgreSQL\17\bin\psql.exe` |
 | Prisma version lock | Never run `npm i prisma@latest` — Prisma 7 breaks the setup (requires `prisma.config.ts` + driver adapters) |
 | QR Code | `PAYMENT_QR_IMAGE = null` in `PendingPaymentModal.js` — placeholder shown until real QR image asset is provided |
-| File upload storage | Payment slips and avatars stored on local disk — not suitable for cloud. `lib/storage.js` is the migration point |
+| File upload storage | Payment slips stored on local disk — not suitable for cloud. `lib/storage.js` is the migration point |
 | ThaiBulkSMS sender name | Use `"Demo"` on trial account. Switch to an approved sender name before go-live (set `THAIBULKSMS_SENDER` in `.env`) |
 
 ---
 
-## 16. Planned Enhancements (Future Scope)
+## 17. Planned Enhancements (Future Scope)
 
 - **Push notifications** — notify users when their payment is confirmed or coach is reassigned.
 - **Court images from settings** — allow admins to upload court images via the admin panel instead of via code.
@@ -485,7 +587,7 @@ graph TD
 
 ---
 
-## 17. Test Accounts (Development / Seed Data)
+## 18. Test Accounts (Development / Seed Data)
 
 | Role | Phone | Notes |
 |---|---|---|
@@ -501,7 +603,7 @@ npm run seed
 
 ---
 
-## 18. Race & Abuse Protection (Booking Money Path)
+## 19. Race & Abuse Protection (Booking Money Path)
 
 These three defences run on every request that touches money or court inventory. Each closes a specific failure mode found in the v1.0 implementation. Tests are documented in `backend/routes/bookings.js` comments; all three are verified end-to-end with concurrent curl requests.
 

@@ -114,7 +114,6 @@ model User {
   gender            Gender?
   dateOfBirth       DateTime?
   occupation        String         @default("")
-  avatar            String         @default("")
   role              Role           @default(user)
   credit            Float          @default(0)
   preferredLanguage Language       @default(en)
@@ -180,7 +179,6 @@ model Coach {
   nickname          String              @default("")
   phone             String
   email             String              @default("")
-  avatar            String              @default("")
   bio               String              @default("") @db.VarChar(1000)
   specialization    Specialization[]
   certifications    String[]

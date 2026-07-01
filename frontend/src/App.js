@@ -103,7 +103,7 @@ function App() {
         <SocketProvider>
           <Toaster position="top-center" toastOptions={{
             duration: 3000,
-            style: { fontFamily: 'DM Sans, sans-serif', fontSize: '14px' }
+            style: { fontFamily: "'Poppins', 'FCVision', sans-serif", fontSize: '14px' }
           }} />
           <AppRoutes />
         </SocketProvider>

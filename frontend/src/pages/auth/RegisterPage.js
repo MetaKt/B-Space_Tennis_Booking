@@ -45,11 +45,8 @@ const RegisterPage = () => {
 
   return (
     <div className="auth-page">
+      <img src="/B-Space_Logo_removedbg.png" alt="B·Space Tennis Club" style={{ width: '200px', marginBottom: '32px' }} />
       <div className="auth-card">
-        <div className="auth-logo">
-          <span className="icon">🎾</span>
-          <h1>{t('app.name')}</h1>
-        </div>
         <h2 className="auth-title">{t('auth.register')}</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">

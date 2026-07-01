@@ -110,7 +110,6 @@ const OTPPage = () => {
           ← {t('common.back')}
         </button>
         <div className="auth-logo">
-          <span className="icon">🔐</span>
           <h1>{t('auth.verifyOtp')}</h1>
         </div>
         <p style={{ textAlign: 'center', color: 'var(--gray-500)', fontSize: '14px', marginBottom: '24px' }}>

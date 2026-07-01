@@ -65,8 +65,8 @@ const CourtSelector = ({ courts, selectedCourt, onSelectCourt }) => {
 
             {/* Court Info */}
             <div className="court-visual-info">
-              <div className="court-visual-number">Court {court.courtNumber}</div>
               <div className="court-visual-name">{court.name}</div>
+              <div className="court-visual-number">Court {court.courtNumber}</div>
               
               {/* Price Badge */}
               <div className="court-visual-footer">

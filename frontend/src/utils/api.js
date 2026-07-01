@@ -111,9 +111,6 @@ export const authAPI = {
 // User API
 export const userAPI = {
   updateProfile: (data) => api.put('/users/profile', data),
-  uploadAvatar: (formData) => api.post('/users/avatar', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
   getCredit: () => api.get('/users/credit'),
   updateLanguage: (language) => api.put('/users/language', { language }),
 };
@@ -150,9 +147,6 @@ export const coachAPI = {
   getStats: (id, month, year) => api.get(`/coaches/${id}/stats`, { params: { month, year } }),
   create: (data) => api.post('/coaches', data),
   update: (id, data) => api.put(`/coaches/${id}`, data),
-  uploadAvatar: (id, formData) => api.post(`/coaches/${id}/avatar`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
   delete: (id) => api.delete(`/coaches/${id}`),
 };
 

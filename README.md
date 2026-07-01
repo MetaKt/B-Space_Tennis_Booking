@@ -62,7 +62,7 @@ graph TD
 
     subgraph Storage["Supabase (Cloud)"]
         DB[(PostgreSQL\nDatabase)]
-        FILES["Supabase Storage\nPayment slips · Avatars"]
+        FILES["Supabase Storage\nPayment slips"]
     end
 
     SMS["ThaiBulkSMS\nAPI v2"]
@@ -107,10 +107,10 @@ Tennis_Booking/
 │   │   └── aliasId.js              # Adds _id = id to all responses (frontend compatibility)
 │   ├── routes/
 │   │   ├── auth.js                 # register, login, verify-otp, resend-otp, refresh, logout, me
-│   │   ├── users.js                # profile, avatar, credit, language
+│   │   ├── users.js                # profile, credit, language
 │   │   ├── bookings.js             # slots, coaches, create, confirm-payment, payment-slip, cancel, history
 │   │   ├── courts.js               # CRUD, soft-delete
-│   │   ├── coaches.js              # CRUD, avatar, availability, stats
+│   │   ├── coaches.js              # CRUD, availability, stats
 │   │   ├── admin.js                # dashboard, booking management, user management, business summary
 │   │   └── settings.js             # get, update, bulk-upsert, delete
 │   ├── prisma/
@@ -258,7 +258,7 @@ These are created by `npm run seed`:
 | `POST /api/auth/verify-otp` | Verify OTP, receive tokens | Public |
 | `POST /api/auth/refresh` | Rotate refresh token, get new access token | Public |
 | `POST /api/auth/logout` | Revoke refresh token | Public |
-| `GET /api/users/*` | Profile, credit, avatar | User |
+| `GET /api/users/*` | Profile, credit | User |
 | `GET /api/bookings/available-slots` | Available time slots | User |
 | `POST /api/bookings` | Create provisional booking (lock slot) | User |
 | `POST /api/bookings/:id/confirm-payment` | Submit coach/add-ons, debit credit | User |

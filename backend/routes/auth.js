@@ -229,7 +229,6 @@ router.post('/verify-otp', authLimiter, async (req, res) => {
           phone: user.phone,
           email: user.email,
           role: user.role,
-          avatar: user.avatar,
           credit: user.credit,
           preferredLanguage: user.preferredLanguage,
         },

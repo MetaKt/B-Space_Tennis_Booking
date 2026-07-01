@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -114,39 +114,36 @@ const HomePage = () => {
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   };
 
-  const getInitials = (name) => name ? name.charAt(0).toUpperCase() : '?';
-
   return (
     <div className="mobile-wrapper">
       {/* Header */}
       <div className="home-header">
         <div className="home-topbar">
           <div className="home-user">
-            <div className="home-avatar" onClick={() => navigate('/profile')}>
-              {user?.avatar ? <img src={user.avatar} alt="" /> : getInitials(user?.name)}
-            </div>
             <div>
               <div className="home-welcome">{t('home.welcome')}</div>
               <div className="home-user-name">{user?.name}</div>
             </div>
+            {/* <img src="/B-Space_Logo_removedbg.png" alt="B·Space Tennis Club" className="home-logo" /> */}
           </div>
+          <img src="/B-Space_Logo_removedbg.png" alt="B·Space Tennis Club" className="home-logo" />
           <div className="home-actions">
             <button className="icon-btn" onClick={toggleLanguage} title={t('home.changeLang')}>
-              {i18n.language === 'en' ? '🇹🇭' : '🇬🇧'}
+              {i18n.language === 'en' ? 'TH' : 'EN'}
             </button>
             <div style={{ position: 'relative' }} ref={menuRef}>
               <button className="icon-btn" onClick={() => setShowMenu(!showMenu)}>☰</button>
               {showMenu && (
                 <div className="dropdown-menu">
                   <button className="dropdown-item" onClick={() => { setShowMenu(false); navigate('/profile'); }}>
-                    👤 {t('home.personalInfo')}
+                    {t('home.personalInfo')}
                   </button>
                   <button className="dropdown-item" onClick={() => { setShowMenu(false); navigate('/history'); }}>
-                    📋 {t('home.bookingHistory')}
+                    {t('home.bookingHistory')}
                   </button>
                   <div className="dropdown-divider" />
                   <button className="dropdown-item danger" onClick={handleLogout}>
-                    🚪 {t('auth.logout')}
+                    {t('auth.logout')}
                   </button>
                 </div>
               )}
@@ -166,7 +163,7 @@ const HomePage = () => {
       {/* Book Now Button */}
       <div className="book-now-section">
         <button className="book-now-btn" onClick={() => navigate('/book')}>
-          🎾 {t('home.bookNow')}
+          {t('home.bookNow')}
         </button>
       </div>
 
@@ -177,7 +174,7 @@ const HomePage = () => {
           <div className="loading-spinner"><div className="spinner" /></div>
         ) : upcomingBookings.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📅</div>
+            <div className="empty-state-icon"></div>
             <div className="empty-state-text">{t('home.noUpcoming')}</div>
           </div>
         ) : (
@@ -199,8 +196,8 @@ const HomePage = () => {
                 >
                   <div className="booking-card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: urgent ? '#fee2e2' : '#fef3c7', color: urgent ? '#b91c1c' : '#92400e', letterSpacing: '0.5px' }}>
-                        ⏱ RESERVED
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: urgent ? '#fee2e2' : '#fef3c7', color: urgent ? '#b91c1c' : '#92400e', letterSpacing: '0px' }}>
+                        RESERVED
                       </span>
                       <span className="booking-card-court">{t('booking.courtNumber')} {booking.court?.courtNumber} - {booking.court?.name}</span>
                     </div>
@@ -209,8 +206,8 @@ const HomePage = () => {
                     </span>
                   </div>
                   <div className="booking-card-details">
-                    <span className="booking-card-detail">📅 {format(new Date(booking.date.slice(0, 10) + 'T12:00:00'), 'dd MMM yyyy')}</span>
-                    <span className="booking-card-detail">⏰ {booking.startTime} - {booking.endTime}</span>
+                    <span className="booking-card-detail">{format(new Date(booking.date.slice(0, 10) + 'T12:00:00'), 'dd MMM yyyy')}</span>
+                    <span className="booking-card-detail">{booking.startTime} - {booking.endTime}</span>
                   </div>
                   <div style={{ fontSize: '12px', color: urgent ? '#b91c1c' : '#92400e', marginTop: '6px' }}>
                     Reservation expires in {timeLeft} — complete payment to confirm.
@@ -245,14 +242,14 @@ const HomePage = () => {
                 <div className="booking-card" style={{ marginBottom: hasCoach ? '2px' : '0', borderRadius: hasCoach ? '12px 12px 0 0' : '12px' }}>
                   <div className="booking-card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--green-100)', color: 'var(--green-800)', letterSpacing: '0.5px' }}>COURT</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--green-100)', color: 'var(--green-800)', letterSpacing: '0px' }}>COURT</span>
                       <span className="booking-card-court">{t('booking.courtNumber')} {booking.court?.courtNumber} - {booking.court?.name}</span>
                     </div>
                     <span className={`status-badge status-${booking.status}`}>{t(`common.${booking.status}`)}</span>
                   </div>
                   <div className="booking-card-details">
-                    <span className="booking-card-detail">📅 {format(new Date(booking.date.slice(0, 10) + 'T12:00:00'), 'dd MMM yyyy')}</span>
-                    <span className="booking-card-detail">⏰ {booking.startTime} - {booking.endTime}</span>
+                    <span className="booking-card-detail">{format(new Date(booking.date.slice(0, 10) + 'T12:00:00'), 'dd MMM yyyy')}</span>
+                    <span className="booking-card-detail">{booking.startTime} - {booking.endTime}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--gray-100)' }}>
                     <span className="booking-card-id" style={{ marginTop: 0 }}>{booking.bookingId}</span>
@@ -273,7 +270,7 @@ const HomePage = () => {
                   <div className="booking-card" style={{ borderRadius: '0 0 12px 12px', borderTop: '1px dashed var(--gray-200)', background: 'var(--gray-50)' }}>
                     <div className="booking-card-header">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--blue-100)', color: 'var(--blue-800)', letterSpacing: '0.5px' }}>COACH</span>
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--blue-100)', color: 'var(--blue-800)', letterSpacing: '0px' }}>COACH</span>
                         <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-700)' }}>
                           {coachName || (booking.coachOption === 'outside' ? 'Outside Coach' : 'Coach')}
                         </span>

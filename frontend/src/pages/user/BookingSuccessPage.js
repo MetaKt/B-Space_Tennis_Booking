@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -32,7 +32,7 @@ const BookingSuccessPage = () => {
         <div style={{
           background: 'var(--gray-100)', borderRadius: '8px', padding: '12px 20px',
           textAlign: 'center', fontWeight: 600, fontSize: '16px', color: 'var(--green-800)',
-          marginBottom: '40px', letterSpacing: '1px'
+          marginBottom: '40px', letterSpacing: '0.1px'
         }}>
           {id}
         </div>

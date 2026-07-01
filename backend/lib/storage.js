@@ -7,9 +7,9 @@
 //
 // Usage in routes:
 //   const { getUploader, getFilePath, FILTERS } = require('../lib/storage');
-//   const upload = getUploader('avatars', { prefix: (req) => `avatar-${req.user.id}`, maxSize: 5 * 1024 * 1024 });
-//   router.post('/avatar', upload.single('avatar'), (req, res) => {
-//     const path = getFilePath('avatars', req.file.filename);
+//   const upload = getUploader('payments', { fileFilter: FILTERS.imagesPdf });
+//   router.post('/payment-slip', upload.single('paymentSlip'), (req, res) => {
+//     const path = getFilePath('payments', req.file.filename);
 //     ...
 //   });
 
@@ -20,9 +20,7 @@ const path   = require('path');
 // Maps logical folder name → local disk path (relative to the backend root).
 // Add new folders here if needed.
 const FOLDER_PATHS = {
-  avatars:  'uploads/avatars',
   payments: 'uploads/payments',
-  coaches:  'uploads/coaches',
 };
 
 // ─── Shared file filters ──────────────────────────────────────────────────────
@@ -53,7 +51,7 @@ const FILTERS = {
 /**
  * Returns a configured multer instance backed by local disk storage.
  *
- * @param {'avatars'|'payments'|'coaches'} folder - Target upload folder.
+ * @param {'payments'} folder - Target upload folder.
  * @param {Object}  [opts]
  * @param {string|Function} [opts.prefix]     - Filename prefix string or (req) => string.
  *                                              Defaults to the folder name.
@@ -88,7 +86,7 @@ function getUploader(folder, opts = {}) {
  * Development:  relative path served by express.static  →  /uploads/folder/filename
  * Production:   TODO — return Supabase Storage / S3 public URL instead.
  *
- * @param {'avatars'|'payments'|'coaches'} folder
+ * @param {'payments'} folder
  * @param {string} filename - The filename set by multer (req.file.filename)
  */
 function getFilePath(folder, filename) {

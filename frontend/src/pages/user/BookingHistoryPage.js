@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
@@ -127,7 +127,7 @@ const BookingHistoryPage = () => {
           <div className="loading-spinner"><div className="spinner" /></div>
         ) : bookings.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">📋</div>
+            <div className="empty-state-icon"></div>
             <div className="empty-state-text">{t('booking.noBookings')}</div>
           </div>
         ) : (
@@ -143,23 +143,22 @@ const BookingHistoryPage = () => {
                 <div className="booking-card" style={{ marginBottom: hasCoach ? '2px' : '0', borderRadius: hasCoach ? '12px 12px 0 0' : '12px' }}>
                   <div className="booking-card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--green-100)', color: 'var(--green-800)', letterSpacing: '0.5px' }}>COURT</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--green-100)', color: 'var(--green-800)', letterSpacing: '0px' }}>COURT</span>
                       <span className="booking-card-court">{t('booking.courtNumber')} {booking.court?.courtNumber} - {booking.court?.name}</span>
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px', background: `${getStatusColor(booking.status)}20`, color: getStatusColor(booking.status) }}>
-                      {t(`common.${booking.status}`)}
+                    <span className={`status-badge status-${booking.status}`}>{t(`common.${booking.status}`)}
                     </span>
                   </div>
 
                   <div className="booking-card-details">
-                    <span className="booking-card-detail">📅 {format(new Date(booking.date.slice(0, 10) + 'T12:00:00'), 'dd MMM yyyy')}</span>
-                    <span className="booking-card-detail">⏰ {booking.startTime} - {booking.endTime}</span>
+                    <span className="booking-card-detail">{format(new Date(booking.date.slice(0, 10) + 'T12:00:00'), 'dd MMM yyyy')}</span>
+                    <span className="booking-card-detail">{booking.startTime} - {booking.endTime}</span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--gray-100)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 500, padding: '2px 6px', borderRadius: '8px', background: `${getPaymentColor(booking.paymentStatus)}15`, color: getPaymentColor(booking.paymentStatus) }}>
-                        💳 {t(`common.${booking.paymentStatus}`)}
+                        {t(`common.${booking.paymentStatus}`)}
                       </span>
                       <span className="booking-card-id" style={{ marginTop: 0 }}>{booking.bookingId}</span>
                     </div>
@@ -186,7 +185,7 @@ const BookingHistoryPage = () => {
                   <div className="booking-card" style={{ borderRadius: '0 0 12px 12px', borderTop: '1px dashed var(--gray-200)', background: 'var(--gray-50)' }}>
                     <div className="booking-card-header">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--blue-100)', color: 'var(--blue-800)', letterSpacing: '0.5px' }}>COACH</span>
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--blue-100)', color: 'var(--blue-800)', letterSpacing: '0px' }}>COACH</span>
                         <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-700)' }}>
                           {coachName || (booking.coachOption === 'outside' ? 'Outside Coach' : 'Coach')}
                         </span>

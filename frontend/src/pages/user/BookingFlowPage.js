@@ -53,13 +53,11 @@ const BookingFlowPage = () => {
   const [slots, setSlots] = useState([]);
   const [selectedSlots, setSelectedSlots] = useState([]);
 
-  // Coach + add-on state (CLIENT-HELD until confirm-payment — Option B)
+  // Coach state (CLIENT-HELD until confirm-payment — Option B)
   const [coaches, setCoaches] = useState([]);
   const [coachOption, setCoachOption] = useState('none');
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [outsideCoachName, setOutsideCoachName] = useState('');
-  const [addOns, setAddOns] = useState([]);
-  const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [useCredit, setUseCredit] = useState(false);
   const [settings, setSettings] = useState({});
 
@@ -164,8 +162,7 @@ const BookingFlowPage = () => {
     try {
       const res = await settingsAPI.getPublic();
       setSettings(res.data.data);
-      const addOnSettings = res.data.data.add_ons || {};
-      setAddOns(Object.values(addOnSettings).filter(a => a.available));
+      // add_ons feature removed — no longer loaded
     } catch (e) { /* non-fatal */ }
   };
 
@@ -343,7 +340,7 @@ const BookingFlowPage = () => {
     let coachPrice = 0;
     if (coachOption === 'in_house' && selectedCoach) coachPrice = selectedCoach.pricePerHour * hours;
     const outsideCoachFee = coachOption === 'outside' ? (settings.booking_rules?.outside_coach_fee || 100) : 0;
-    const addOnsTotal = selectedAddOns.reduce((sum, a) => sum + a.price, 0);
+    const addOnsTotal = 0; // add_ons feature removed
     const subtotal = courtPrice + coachPrice + outsideCoachFee + addOnsTotal;
     const creditDiscount = useCredit ? Math.min(user?.credit || 0, subtotal) : 0;
     return { courtPrice, coachPrice, outsideCoachFee, addOnsTotal, subtotal, creditDiscount, total: subtotal - creditDiscount, hours };
@@ -375,13 +372,12 @@ const BookingFlowPage = () => {
       const pricing = calculatePricing();
       const creditToUse = useCredit ? Math.min(user?.credit || 0, pricing.subtotal) : 0;
 
-      // Send coach + add-ons HERE for the first time (Option B: client-held until now).
-      // Add-on `price` is intentionally NOT sent — server derives it from Settings.
+      // Send coach HERE for the first time (Option B: client-held until now).
       await bookingAPI.confirmPayment(provisionalBooking.id, {
         coachOption,
         coachId: coachOption === 'in_house' ? selectedCoach?.id : undefined,
         outsideCoachName: coachOption === 'outside' ? outsideCoachName : '',
-        addOns: selectedAddOns.map(a => ({ name: a.name, quantity: 1 })),
+        addOns: [], // add_ons feature removed
         creditUsed: creditToUse,
       });
 
@@ -418,7 +414,7 @@ const BookingFlowPage = () => {
         coachOption,
         coachId: coachOption === 'in_house' ? selectedCoach?.id : undefined,
         outsideCoachName: coachOption === 'outside' ? outsideCoachName : '',
-        addOns: selectedAddOns.map(a => ({ name: a.name, quantity: 1 })),
+        addOns: [], // add_ons feature removed
         creditUsed: creditToUse,
       });
 
@@ -441,12 +437,6 @@ const BookingFlowPage = () => {
       setPaymentSlip(file);
       setPaymentSlipPreview(URL.createObjectURL(file));
     }
-  };
-
-  const toggleAddOn = (addon) => {
-    const exists = selectedAddOns.find(a => a.name === addon.name);
-    if (exists) setSelectedAddOns(selectedAddOns.filter(a => a.name !== addon.name));
-    else setSelectedAddOns([...selectedAddOns, addon]);
   };
 
   // ===========================================================================
@@ -490,7 +480,7 @@ const BookingFlowPage = () => {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}
       >
-        <span>⏱ Slot reserved for you</span>
+        <span>Slot reserved for you</span>
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTimer(timeRemaining)}</span>
       </div>
     ) : null
@@ -584,7 +574,7 @@ const BookingFlowPage = () => {
               {/* Help text when user has an active provisional */}
               {provisionalBooking && !selectionMatchesProvisional() && selectedSlots.length > 0 && (
                 <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--gold-700, #b45309)', textAlign: 'center' }}>
-                  ℹ Picking a different slot will release your current reservation.
+                  Picking a different slot will release your current reservation.
                 </div>
               )}
             </>
@@ -604,56 +594,46 @@ const BookingFlowPage = () => {
 
                 <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '10px' }}>{t('booking.coach')}</h4>
 
-                <div className={`coach-option ${coachOption === 'none' ? 'selected' : ''}`} onClick={() => { setCoachOption('none'); setSelectedCoach(null); }}>
-                  <div className="coach-info"><div className="coach-avatar">🚫</div><div><div className="coach-name">{t('booking.noCoach')}</div></div></div>
-                </div>
+                <select
+                  className="form-input"
+                  style={{ marginBottom: '8px' }}
+                  value={coachOption === 'in_house' ? (selectedCoach?.id || '') : coachOption}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'none') { setCoachOption('none'); setSelectedCoach(null); }
+                    else if (val === 'outside') { setCoachOption('outside'); setSelectedCoach(null); }
+                    else {
+                      const coach = coaches.find(c => c.id === val);
+                      setCoachOption('in_house');
+                      setSelectedCoach(coach || null);
+                    }
+                  }}
+                >
+                  <option value="none">{t('booking.noCoach')}</option>
+                  {coaches.map((coach) => (
+                    <option key={coach.id} value={coach.id}>{coach.nickname || coach.name}</option>
+                  ))}
+                  <option value="outside">{t('booking.outsideCoach')} (+฿{settings.booking_rules?.outside_coach_fee || 100})</option>
+                </select>
 
-                <div className={`coach-option ${coachOption === 'outside' ? 'selected' : ''}`} onClick={() => { setCoachOption('outside'); setSelectedCoach(null); }}>
-                  <div className="coach-info"><div className="coach-avatar">👤</div><div><div className="coach-name">{t('booking.outsideCoach')}</div><div className="coach-detail">+฿{settings.booking_rules?.outside_coach_fee || 100} fee</div></div></div>
-                </div>
                 {coachOption === 'outside' && (
                   <div className="form-group" style={{ marginTop: '8px' }}>
                     <input type="text" className="form-input" placeholder={t('booking.outsideCoachName')} value={outsideCoachName} onChange={(e) => setOutsideCoachName(e.target.value)} />
                   </div>
                 )}
 
-                {coaches.map((coach) => (
-                  <div key={coach.id} className={`coach-option ${coachOption === 'in_house' && selectedCoach?.id === coach.id ? 'selected' : ''}`} onClick={() => { setCoachOption('in_house'); setSelectedCoach(coach); }}>
-                    <div className="coach-info" style={{ justifyContent: 'space-between', width: '100%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div className="coach-avatar">{coach.avatar ? '🏫' : '🎾'}</div>
-                        <div>
-                          <div className="coach-name">{coach.nickname || coach.name}</div>
-                          <div className="coach-detail">{coach.specialization?.join(', ')} · ⭐ {coach.rating}</div>
-                        </div>
-                      </div>
-                      <div className="coach-price-tag">฿{coach.pricePerHour}/hr</div>
-                    </div>
+                {coachOption === 'in_house' && selectedCoach && (
+                  <div style={{ padding: '8px 12px', background: 'var(--gray-50)', borderRadius: '8px', fontSize: '12px', color: 'var(--gray-500)', marginBottom: '4px' }}>
+                    {[selectedCoach.specialization?.join(', '), `฿${selectedCoach.pricePerHour}/hr`].filter(Boolean).join(' · ')}
                   </div>
-                ))}
+                )}
 
                 <div className="slip-divider" />
-
-                {addOns.length > 0 && (
-                  <>
-                    <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '10px' }}>{t('booking.addOns')}</h4>
-                    <div className="addon-grid">
-                      {addOns.map((addon, i) => (
-                        <div key={i} className={`addon-chip ${selectedAddOns.find(a => a.name === addon.name) ? 'selected' : ''}`} onClick={() => toggleAddOn(addon)}>
-                          <span>{addon.name}</span>
-                          <span className="addon-chip-price">฿{addon.price}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="slip-divider" />
-                  </>
-                )}
 
                 <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '10px' }}>{t('booking.pricing')}</h4>
                 <div className="slip-row"><span className="slip-label">{t('booking.courtFee')}</span><span className="slip-value">฿{pricing.courtPrice.toLocaleString()}</span></div>
                 {pricing.coachPrice > 0 && <div className="slip-row"><span className="slip-label">{t('booking.coachFee')}</span><span className="slip-value">฿{pricing.coachPrice.toLocaleString()}</span></div>}
                 {pricing.outsideCoachFee > 0 && <div className="slip-row"><span className="slip-label">{t('booking.outsideCoachFee')}</span><span className="slip-value">฿{pricing.outsideCoachFee.toLocaleString()}</span></div>}
-                {pricing.addOnsTotal > 0 && <div className="slip-row"><span className="slip-label">{t('booking.addOnsFee')}</span><span className="slip-value">฿{pricing.addOnsTotal.toLocaleString()}</span></div>}
 
                 {(user?.credit || 0) > 0 && (
                   <div className="slip-row" style={{ marginTop: '8px' }}>
@@ -674,7 +654,7 @@ const BookingFlowPage = () => {
 
               <button className="btn btn-gold" onClick={handleGoToPayment} disabled={loading} style={{ marginTop: '20px' }}>
                 {loading ? t('common.loading') : pricing.total === 0
-                  ? `✓ ${t('booking.confirm')} (Credits Cover Full Amount)`
+                  ? `${t('booking.confirm')} (Credits Cover Full Amount)`
                   : `${t('booking.pay')} ฿${pricing.total.toLocaleString()}`}
               </button>
             </>
@@ -693,7 +673,6 @@ const BookingFlowPage = () => {
                 <div className="slip-row"><span className="slip-label">{t('booking.courtFee')}</span><span className="slip-value">฿{pricing.courtPrice.toLocaleString()}</span></div>
                 {pricing.coachPrice > 0 && <div className="slip-row"><span className="slip-label">{t('booking.coachFee')}</span><span className="slip-value">฿{pricing.coachPrice.toLocaleString()}</span></div>}
                 {pricing.outsideCoachFee > 0 && <div className="slip-row"><span className="slip-label">{t('booking.outsideCoachFee')}</span><span className="slip-value">฿{pricing.outsideCoachFee.toLocaleString()}</span></div>}
-                {pricing.addOnsTotal > 0 && <div className="slip-row"><span className="slip-label">{t('booking.addOnsFee')}</span><span className="slip-value">฿{pricing.addOnsTotal.toLocaleString()}</span></div>}
                 {pricing.creditDiscount > 0 && <div className="slip-row"><span className="slip-label">{t('booking.creditDiscount')}</span><span className="slip-value" style={{ color: 'var(--red-500)' }}>-฿{pricing.creditDiscount.toLocaleString()}</span></div>}
                 <div className="slip-divider" />
                 <div className="slip-row slip-total">
@@ -707,16 +686,16 @@ const BookingFlowPage = () => {
                 {PAYMENT_QR_IMAGE ? (
                   <img src={PAYMENT_QR_IMAGE} alt="Payment QR" style={{ width: '160px', height: '160px', objectFit: 'contain', display: 'block', margin: '0 auto' }} />
                 ) : (
-                  <div className="qr-placeholder">📱</div>
+                  <div className="qr-placeholder">QR</div>
                 )}
                 <p style={{ fontSize: '12px', color: 'var(--gray-400)', marginTop: '8px' }}>
                   {settings.payment?.payment_bank_name} - {settings.payment?.payment_account_number}<br />
                   {settings.payment?.payment_account_name}
                 </p>
                 {PAYMENT_QR_IMAGE ? (
-                  <a href={DOWNLOAD_QR_IMAGE} download="B-Space.payment-qr.png" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '10px', fontSize: '13px', padding: '6px 18px', textDecoration: 'none' }}>⬇ Download QR</a>
+                  <a href={DOWNLOAD_QR_IMAGE} download="B-Space.payment-qr.png" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '10px', fontSize: '13px', padding: '6px 18px', textDecoration: 'none' }}>Download QR</a>
                 ) : (
-                  <button className="btn btn-outline" disabled style={{ marginTop: '10px', fontSize: '13px', padding: '6px 18px', opacity: 0.45 }}>⬇ Download QR</button>
+                  <button className="btn btn-outline" disabled style={{ marginTop: '10px', fontSize: '13px', padding: '6px 18px', opacity: 0.45 }}>Download QR</button>
                 )}
               </div>
 
@@ -725,7 +704,8 @@ const BookingFlowPage = () => {
                 {paymentSlipPreview ? (
                   <img src={paymentSlipPreview} alt="slip" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }} />
                 ) : (
-                  <><div className="file-upload-icon">📤</div><div className="file-upload-text">{t('booking.uploadSlip')}</div></>
+                  <><div className="file-upload-text">{t('booking.uploadSlip')}</div></>
+
                 )}
               </label>
 
