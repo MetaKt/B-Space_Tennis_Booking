@@ -96,6 +96,7 @@ const resources = {
         cancelConfirm: 'Are you sure you want to cancel this booking?',
         refundCredit: 'Refund Amount',
         cancelReason: 'Reason for cancellation',
+        cancelWindowPassed: 'Cannot cancel within {{hours}}h of start',
         confirmCancel: 'Confirm Cancel',
         cancelBooking: 'Cancel Booking'
       },
@@ -267,6 +268,7 @@ const resources = {
         cancelConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการจองนี้?',
         refundCredit: 'จำนวนเงินคืน',
         cancelReason: 'เหตุผลในการยกเลิก',
+        cancelWindowPassed: 'ยกเลิกได้ก่อนเริ่มอย่างน้อย {{hours}} ชม.',
         confirmCancel: 'ยืนยันการยกเลิก',
         cancelBooking: 'ยกเลิกการจอง'
       },
@@ -349,6 +351,23 @@ i18n.use(initReactI18next).init({
   resources,
   lng: localStorage.getItem('language') || 'en',
   fallbackLng: 'en',
+  interpolation: { escapeValue: false }
+});
+
+// Admin area uses a separate i18n instance permanently pinned to Thai. Staff always
+// read Thai regardless of the user-facing language toggle, and switching the language
+// on the user side never affects the admin pages. Injected via <I18nextProvider> at the
+// admin routes (see App.js).
+//
+// NOTE: do NOT call .use(initReactI18next) here. That plugin registers the instance as
+// react-i18next's *default* for useTranslation() when no provider is present — running it
+// on this second instance would hijack the user-facing pages into Thai. The admin pages
+// receive this instance explicitly through <I18nextProvider>, so the plain instance is enough.
+export const adminI18n = i18n.createInstance();
+adminI18n.init({
+  resources,
+  lng: 'th',
+  fallbackLng: 'th',
   interpolation: { escapeValue: false }
 });
 

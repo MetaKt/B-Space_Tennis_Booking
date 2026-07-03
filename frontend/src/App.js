@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { I18nextProvider } from 'react-i18next';
+import { adminI18n } from './i18n/i18n';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 
@@ -66,6 +68,9 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+// Wraps admin pages in the Thai-only i18n instance
+const Admin = ({ children }) => <I18nextProvider i18n={adminI18n}>{children}</I18nextProvider>;
+
 function AppRoutes() {
   return (
     <Routes>
@@ -81,14 +86,14 @@ function AppRoutes() {
       <Route path="/history" element={<UserRoute><BookingHistoryPage /></UserRoute>} />
       <Route path="/profile" element={<UserRoute><ProfilePage /></UserRoute>} />
 
-      {/* Admin Routes */}
-      <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-      <Route path="/admin/bookings" element={<AdminRoute><AdminBookingManagement /></AdminRoute>} />
-      <Route path="/admin/courts" element={<AdminRoute><AdminCourtManagement /></AdminRoute>} />
-      <Route path="/admin/coaches" element={<AdminRoute><AdminCoachManagement /></AdminRoute>} />
-      <Route path="/admin/users" element={<AdminRoute><AdminUserManagement /></AdminRoute>} />
-      <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
-      <Route path="/admin/business-summary" element={<MasterRoute><AdminBusinessSummary /></MasterRoute>} />
+      {/* Admin Routes — wrapped in the Thai-pinned i18n instance so staff always see Thai */}
+      <Route path="/admin" element={<AdminRoute><Admin><AdminDashboard /></Admin></AdminRoute>} />
+      <Route path="/admin/bookings" element={<AdminRoute><Admin><AdminBookingManagement /></Admin></AdminRoute>} />
+      <Route path="/admin/courts" element={<AdminRoute><Admin><AdminCourtManagement /></Admin></AdminRoute>} />
+      <Route path="/admin/coaches" element={<AdminRoute><Admin><AdminCoachManagement /></Admin></AdminRoute>} />
+      <Route path="/admin/users" element={<AdminRoute><Admin><AdminUserManagement /></Admin></AdminRoute>} />
+      <Route path="/admin/settings" element={<AdminRoute><Admin><AdminSettings /></Admin></AdminRoute>} />
+      <Route path="/admin/business-summary" element={<MasterRoute><Admin><AdminBusinessSummary /></Admin></MasterRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" />} />

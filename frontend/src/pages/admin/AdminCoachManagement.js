@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { AdminLayout } from './AdminDashboard';
 import { coachAPI } from '../../utils/api';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAYS = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
 const SPECIALIZATIONS = ['Beginner', 'Intermediate', 'Advanced', 'Kids', 'Competition', 'Fitness', 'Technique'];
 
 const AdminCoachManagement = () => {
@@ -21,7 +21,7 @@ const AdminCoachManagement = () => {
     try {
       const res = await coachAPI.getAll();
       setCoaches(res.data.data);
-    } catch (e) { toast.error('Failed to load coaches'); }
+    } catch (e) { toast.error('โหลดข้อมูลโค้ชไม่สำเร็จ'); }
     finally { setLoading(false); }
   };
 
@@ -56,7 +56,7 @@ const AdminCoachManagement = () => {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.pricePerHour) return toast.error('Name and price required');
+    if (!form.name || !form.pricePerHour) return toast.error('กรุณากรอกชื่อและราคา');
     const payload = {
       ...form,
       certifications: form.certifications
@@ -66,15 +66,15 @@ const AdminCoachManagement = () => {
     try {
       if (modal === 'create') {
         await coachAPI.create(payload);
-        toast.success('Coach created');
+        toast.success('สร้างโค้ชแล้ว');
       } else {
         await coachAPI.update(modal.id, payload);
-        toast.success('Coach updated');
+        toast.success('อัปเดตโค้ชแล้ว');
       }
       setModal(null);
       fetchCoaches();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save');
+      toast.error(error.response?.data?.message || 'บันทึกไม่สำเร็จ');
     }
   };
 
@@ -86,7 +86,7 @@ const AdminCoachManagement = () => {
         await coachAPI.update(coach.id, { isActive: true });
       }
       fetchCoaches();
-    } catch (e) { toast.error('Failed to update'); }
+    } catch (e) { toast.error('อัปเดตไม่สำเร็จ'); }
   };
 
   const toggleSpec = (spec) => {
@@ -143,9 +143,9 @@ const AdminCoachManagement = () => {
               <thead>
                 <tr>
                   <th>{t('admin.name')}</th>
-                  <th>Nickname</th>
-                  <th>Specializations</th>
-                  <th>Price/hr</th>
+                  <th>ชื่อเล่น</th>
+                  <th>ความเชี่ยวชาญ</th>
+                  <th>ราคา/ชม.</th>
                   <th>{t('admin.status')}</th>
                   <th>{t('admin.actions')}</th>
                 </tr>
@@ -169,14 +169,14 @@ const AdminCoachManagement = () => {
                     <td style={{ fontWeight: 600 }}>฿{coach.pricePerHour?.toLocaleString()}</td>
                     <td>
                       <span className={`status-badge ${coach.isActive ? 'status-confirmed' : 'status-cancelled'}`}>
-                        {coach.isActive ? 'Active' : 'Inactive'}
+                        {coach.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                       </span>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button onClick={() => openEdit(coach)}
                           style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '3px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>
-                          Edit
+                          แก้ไข
                         </button>
                         <button onClick={() => handleToggle(coach)}
                           style={{
@@ -184,7 +184,7 @@ const AdminCoachManagement = () => {
                             background: coach.isActive ? '#fee2e2' : '#dcfce7',
                             color:      coach.isActive ? '#ef4444' : '#16a34a',
                           }}>
-                          {coach.isActive ? 'Deactivate' : 'Activate'}
+                          {coach.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
                         </button>
                       </div>
                     </td>
@@ -206,22 +206,22 @@ const AdminCoachManagement = () => {
             </h3>
 
             <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-              <div style={{ flex: 1 }}><label style={labelStyle}>Name *</label><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label style={labelStyle}>Nickname</label><input style={inputStyle} value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label style={labelStyle}>ชื่อ *</label><input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label style={labelStyle}>ชื่อเล่น</label><input style={inputStyle} value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} /></div>
             </div>
 
             <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-              <div style={{ flex: 1 }}><label style={labelStyle}>Phone</label><input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label style={labelStyle}>Email</label><input style={inputStyle} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label style={labelStyle}>เบอร์โทร</label><input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label style={labelStyle}>อีเมล</label><input style={inputStyle} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>Bio</label>
+              <label style={labelStyle}>ประวัติ</label>
               <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>Specializations</label>
+              <label style={labelStyle}>ความเชี่ยวชาญ</label>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
                 {SPECIALIZATIONS.map((spec) => (
                   <span key={spec} onClick={() => toggleSpec(spec)}
@@ -238,20 +238,20 @@ const AdminCoachManagement = () => {
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>Certifications (comma-separated)</label>
+              <label style={labelStyle}>ใบรับรอง (คั่นด้วยจุลภาค)</label>
               <input style={inputStyle} value={form.certifications} onChange={(e) => setForm({ ...form, certifications: e.target.value })} />
             </div>
 
             <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-              <div style={{ flex: 1 }}><label style={labelStyle}>Price/hour (฿) *</label><input style={inputStyle} type="number" value={form.pricePerHour} onChange={(e) => setForm({ ...form, pricePerHour: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label style={labelStyle}>Experience (years)</label><input style={inputStyle} type="number" value={form.yearsOfExperience} onChange={(e) => setForm({ ...form, yearsOfExperience: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label style={labelStyle}>ราคา/ชม. (฿) *</label><input style={inputStyle} type="number" value={form.pricePerHour} onChange={(e) => setForm({ ...form, pricePerHour: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label style={labelStyle}>ประสบการณ์ (ปี)</label><input style={inputStyle} type="number" value={form.yearsOfExperience} onChange={(e) => setForm({ ...form, yearsOfExperience: e.target.value })} /></div>
             </div>
 
             <div style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={labelStyle}>Availability</label>
+                <label style={labelStyle}>ตารางเวลาว่าง</label>
                 <button onClick={addAvailability} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '3px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#073659', fontWeight: 600 }}>
-                  + Add
+                  + เพิ่ม
                 </button>
               </div>
               {(form.availability || []).map((avail, i) => (

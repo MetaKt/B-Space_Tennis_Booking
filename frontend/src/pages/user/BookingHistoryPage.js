@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { bookingAPI } from '../../utils/api';
+import { bookingAPI, settingsAPI } from '../../utils/api';
 import PendingPaymentModal from '../../components/user/PendingPaymentModal';
 
 const BookingHistoryPage = () => {
@@ -17,10 +17,25 @@ const BookingHistoryPage = () => {
   const [cancelModal, setCancelModal] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   const [paymentModal, setPaymentModal] = useState(null);
+  const [cancellationHours, setCancellationHours] = useState(0);
 
   useEffect(() => {
     fetchHistory();
   }, [filter, page]);
+
+  useEffect(() => {
+    settingsAPI.getPublic()
+      .then((res) => setCancellationHours(Number(res.data.data?.court_operations?.cancellation_hours) || 0))
+      .catch(() => {});
+  }, []);
+
+  // A confirmed booking can only be cancelled up to `cancellationHours` before start.
+  const canCancelNow = (booking) => {
+    if (!cancellationHours) return true;
+    const dateStr = booking.date.slice(0, 10);
+    const start = new Date(`${dateStr}T${booking.startTime}:00+07:00`);
+    return (start.getTime() - Date.now()) / (60 * 60 * 1000) >= cancellationHours;
+  };
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -171,9 +186,15 @@ const BookingHistoryPage = () => {
                           </button>
                         )}
                         {booking.status === 'upcoming' && (
-                          <button onClick={() => setCancelModal(booking)} style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '6px', border: '1px solid var(--red-300)', color: 'var(--red-500)', background: 'white', cursor: 'pointer', fontWeight: 500 }}>
-                            {t('common.cancel')}
-                          </button>
+                          canCancelNow(booking) ? (
+                            <button onClick={() => setCancelModal(booking)} style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '6px', border: '1px solid var(--red-300)', color: 'var(--red-500)', background: 'white', cursor: 'pointer', fontWeight: 500 }}>
+                              {t('common.cancel')}
+                            </button>
+                          ) : (
+                            <span title={t('booking.cancelWindowPassed', { hours: cancellationHours })} style={{ fontSize: '10px', color: 'var(--gray-400)', maxWidth: '110px', textAlign: 'right', lineHeight: 1.3 }}>
+                              {t('booking.cancelWindowPassed', { hours: cancellationHours })}
+                            </span>
+                          )
                         )}
                       </div>
                     </div>

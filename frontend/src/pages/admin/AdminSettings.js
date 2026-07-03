@@ -32,7 +32,7 @@ const AdminSettings = () => {
       setSettings(grouped);
       setMeta(metaMap);
     } catch (e) {
-      toast.error('Failed to load settings');
+      toast.error('โหลดการตั้งค่าไม่สำเร็จ');
     } finally {
       setLoading(false);
     }
@@ -60,7 +60,7 @@ const AdminSettings = () => {
       // Re-fetch so local state matches what the server stored
       fetchSettings();
     } catch (error) {
-      toast.error('Failed to save settings');
+      toast.error('บันทึกการตั้งค่าไม่สำเร็จ');
     } finally {
       setSaving(false);
     }
@@ -75,8 +75,8 @@ const AdminSettings = () => {
 
   // Only two tabs — Add-ons removed (client cancelled feature)
   const tabs = [
-    { key: 'court_operations', label: 'Court Operations' },
-    { key: 'payment',          label: 'Payment' },
+    { key: 'court_operations', label: 'การดำเนินงานคอร์ท' },
+    { key: 'payment',          label: 'การชำระเงิน' },
   ];
 
   const inputStyle = {
@@ -107,7 +107,7 @@ const AdminSettings = () => {
             disabled={saving || loading}
             style={{ padding: '10px 22px', border: 'none', background: '#073659', color: '#ffde17', borderRadius: '3px', cursor: saving || loading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.1px', textTransform: 'uppercase', opacity: saving || loading ? 0.6 : 1 }}
           >
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
           </button>
         </div>
 
@@ -147,15 +147,15 @@ const AdminSettings = () => {
             {activeTab === 'court_operations' && (
               <div style={{ maxWidth: '500px' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '20px' }}>
-                  Booking Rules
+                  กฎการจอง
                 </h3>
 
                 {/* These four live in the `court_operations` category */}
                 {[
-                  { label: 'Advance Booking Days (max days ahead users can book)', key: 'booking_advance_days', default: 14 },
-                  { label: 'Minimum Booking Hours', key: 'min_booking_hours', default: 1 },
-                  { label: 'Maximum Booking Hours', key: 'max_booking_hours', default: 4 },
-                  { label: 'Cancellation Window (hours before booking)', key: 'cancellation_hours', default: 24 },
+                  { label: 'จำนวนวันที่จองล่วงหน้าได้ (จำนวนวันสูงสุดที่ผู้ใช้จองได้)', key: 'booking_advance_days', default: 14 },
+                  { label: 'จำนวนชั่วโมงขั้นต่ำต่อการจอง', key: 'min_booking_hours', default: 1 },
+                  { label: 'จำนวนชั่วโมงสูงสุดต่อการจอง', key: 'max_booking_hours', default: 4 },
+                  { label: 'ระยะเวลายกเลิก (ชั่วโมงก่อนเริ่มการจอง)', key: 'cancellation_hours', default: 24 },
                 ].map(({ label, key, default: def }) => (
                   <div key={key} style={{ marginBottom: '16px' }}>
                     <label style={labelStyle}>{label}</label>
@@ -170,7 +170,7 @@ const AdminSettings = () => {
 
                 {/* Outside Coach Fee lives in the `booking_rules` category */}
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={labelStyle}>Outside Coach Fee (฿)</label>
+                  <label style={labelStyle}>ค่าธรรมเนียมโค้ชภายนอก (฿)</label>
                   <input
                     style={inputStyle}
                     type="number"
@@ -185,13 +185,13 @@ const AdminSettings = () => {
             {activeTab === 'payment' && (
               <div style={{ maxWidth: '500px' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '20px' }}>
-                  Payment Information
+                  ข้อมูลการชำระเงิน
                 </h3>
 
                 {[
-                  { label: 'Bank Name', key: 'payment_bank_name' },
-                  { label: 'Account Number', key: 'payment_account_number' },
-                  { label: 'Account Name', key: 'payment_account_name' },
+                  { label: 'ชื่อธนาคาร', key: 'payment_bank_name' },
+                  { label: 'เลขที่บัญชี', key: 'payment_account_number' },
+                  { label: 'ชื่อบัญชี', key: 'payment_account_name' },
                 ].map(({ label, key }) => (
                   <div key={key} style={{ marginBottom: '16px' }}>
                     <label style={labelStyle}>{label}</label>

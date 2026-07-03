@@ -28,7 +28,7 @@ const AdminUserManagement = () => {
       const res = await adminAPI.getUsers(params);
       setUsers(res.data.data);
       setTotalPages(res.data.pagination?.pages || 1);
-    } catch (e) { toast.error('Failed to load users'); }
+    } catch (e) { toast.error('โหลดข้อมูลผู้ใช้ไม่สำเร็จ'); }
     finally { setLoading(false); }
   };
 
@@ -40,11 +40,11 @@ const AdminUserManagement = () => {
   const handleSave = async () => {
     try {
       await adminAPI.updateUser(editModal.id, editForm);
-      toast.success('User updated');
+      toast.success('อัปเดตผู้ใช้แล้ว');
       setEditModal(null);
       fetchUsers();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update');
+      toast.error(error.response?.data?.message || 'อัปเดตไม่สำเร็จ');
     }
   };
 
@@ -52,6 +52,12 @@ const AdminUserManagement = () => {
     master_admin: { bg: '#fff8e1', color: '#b45309' },
     admin:        { bg: '#eff6ff', color: '#1d4ed8' },
     user:         { bg: '#f3f4f6', color: '#374151' },
+  };
+
+  const roleLabels = {
+    master_admin: 'ผู้ดูแลสูงสุด',
+    admin:        'ผู้ดูแล',
+    user:         'ผู้ใช้',
   };
 
   const inputStyle = {
@@ -75,15 +81,15 @@ const AdminUserManagement = () => {
         <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', padding: '14px 16px', background: '#fff', borderRadius: '4px', border: '1px solid #e5e7eb' }}>
           <input
             style={{ ...selectStyle, width: '260px' }}
-            placeholder="Search name or phone..."
+            placeholder="ค้นหาชื่อหรือเบอร์โทร..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
           <select style={selectStyle} value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
-            <option value="">All Roles</option>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-            <option value="master_admin">Master Admin</option>
+            <option value="">ทุกบทบาท</option>
+            <option value="user">ผู้ใช้</option>
+            <option value="admin">ผู้ดูแล</option>
+            <option value="master_admin">ผู้ดูแลสูงสุด</option>
           </select>
         </div>
 
@@ -96,10 +102,10 @@ const AdminUserManagement = () => {
               <thead>
                 <tr>
                   <th>{t('admin.name')}</th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Credit</th>
+                  <th>เบอร์โทร</th>
+                  <th>อีเมล</th>
+                  <th>บทบาท</th>
+                  <th>เครดิต</th>
                   <th>{t('admin.status')}</th>
                   <th>{t('admin.actions')}</th>
                 </tr>
@@ -113,20 +119,20 @@ const AdminUserManagement = () => {
                       <td>{u.phone}</td>
                       <td style={{ fontSize: '13px', color: '#9ca3af' }}>{u.email || '—'}</td>
                       <td>
-                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '2px', background: rc.bg, color: rc.color, textTransform: 'uppercase', letterSpacing: '0px' }}>
-                          {u.role}
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '2px', background: rc.bg, color: rc.color, letterSpacing: '0px' }}>
+                          {roleLabels[u.role] || u.role}
                         </span>
                       </td>
                       <td style={{ fontWeight: 700, color: '#073659' }}>฿{(u.credit || 0).toLocaleString()}</td>
                       <td>
                         <span className={`status-badge ${u.isActive ? 'status-confirmed' : 'status-cancelled'}`}>
-                          {u.isActive ? 'Active' : 'Inactive'}
+                          {u.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                         </span>
                       </td>
                       <td>
                         <button onClick={() => openEdit(u)}
                           style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '3px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>
-                          Edit
+                          แก้ไข
                         </button>
                       </td>
                     </tr>
@@ -140,12 +146,12 @@ const AdminUserManagement = () => {
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '16px', borderTop: '1px solid #e5e7eb' }}>
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                 style={{ padding: '6px 14px', borderRadius: '3px', border: '1px solid #e5e7eb', background: '#fff', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>
-                Prev
+                ก่อนหน้า
               </button>
               <span style={{ fontSize: '13px', color: '#6b7280' }}>{page} / {totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                 style={{ padding: '6px 14px', borderRadius: '3px', border: '1px solid #e5e7eb', background: '#fff', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>
-                Next
+                ถัดไป
               </button>
             </div>
           )}
@@ -157,33 +163,33 @@ const AdminUserManagement = () => {
         <div className="modal-overlay" onClick={() => setEditModal(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 800, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '4px' }}>
-              Edit User
+              แก้ไขผู้ใช้
             </h3>
             <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '20px' }}>{editModal.name} — {editModal.phone}</p>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0px' }}>Credit (฿)</label>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0px' }}>เครดิต (฿)</label>
               <input style={inputStyle} type="number" value={editForm.credit}
                 onChange={(e) => setEditForm({ ...editForm, credit: parseFloat(e.target.value) || 0 })} />
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0px' }}>Status</label>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0px' }}>สถานะ</label>
               <select style={inputStyle} value={editForm.isActive}
                 onChange={(e) => setEditForm({ ...editForm, isActive: e.target.value === 'true' })}>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
+                <option value="true">เปิดใช้งาน</option>
+                <option value="false">ปิดใช้งาน</option>
               </select>
             </div>
 
             {currentUser?.role === 'master_admin' && (
               <div style={{ marginBottom: '12px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0px' }}>Role</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0px' }}>บทบาท</label>
                 <select style={inputStyle} value={editForm.role}
                   onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                  <option value="master_admin">Master Admin</option>
+                  <option value="user">ผู้ใช้</option>
+                  <option value="admin">ผู้ดูแล</option>
+                  <option value="master_admin">ผู้ดูแลสูงสุด</option>
                 </select>
               </div>
             )}

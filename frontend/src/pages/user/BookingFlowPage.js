@@ -77,15 +77,20 @@ const BookingFlowPage = () => {
   // INITIAL LOAD
   // ===========================================================================
 
-  // Build calendar (14 days)
   useEffect(() => {
-    const d = [];
-    for (let i = 0; i < 14; i++) d.push(addDays(new Date(), i));
-    setDates(d);
-    if (!resumeId) setSelectedDate(d[0]);
     fetchCourts();
     fetchSettings();
   }, []);
+
+  // Build the date picker from the admin "Advance Booking Days" setting.
+  // Starts at {} → falls back to 14, then rebuilds once settings load.
+  useEffect(() => {
+    const advanceDays = Number(settings.court_operations?.booking_advance_days) || 14;
+    const d = [];
+    for (let i = 0; i < advanceDays; i++) d.push(addDays(new Date(), i));
+    setDates(d);
+    if (!resumeId) setSelectedDate((prev) => prev || d[0]);
+  }, [settings, resumeId]);
   // Resume an existing provisional from /book?resume=<id>
   useEffect(() => {
     if (!resumeId) return;
@@ -313,6 +318,11 @@ const BookingFlowPage = () => {
   const handleNext = async () => {
     if (!selectedDate || !selectedCourt || selectedSlots.length === 0) {
       return toast.error('Please select date, court, and time');
+    }
+
+    const minHours = Number(settings.court_operations?.min_booking_hours) || 1;
+    if (selectedSlots.length < minHours) {
+      return toast.error(`Minimum ${minHours} ${minHours > 1 ? 'hours' : 'hour'} per booking`);
     }
 
     // If selection matches our existing provisional, no API call — just advance

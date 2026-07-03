@@ -486,7 +486,7 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
         status: { not: 'cancelled' },
         bookingStatus: 'confirmed_booking',
       },
-      _sum: { coachPrice: true },
+      _sum: { coachPrice: true, duration: true },
       _count: { coachId: true },
     });
     const coachIds = coachGroups.map(g => g.coachId).filter(Boolean);
@@ -496,6 +496,7 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
       return {
         name: coach?.name,
         revenue: g._sum.coachPrice || 0,
+        hours: g._sum.duration || 0,
         sessions: g._count.coachId,
       };
     });

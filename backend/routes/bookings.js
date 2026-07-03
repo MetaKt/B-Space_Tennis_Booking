@@ -216,13 +216,37 @@ router.post('/', protect, async (req, res) => {
 
     const hours = duration || (parseInt(endTime.split(':')[0]) - parseInt(startTime.split(':')[0]));
 
-    // Enforce max booking hours
-    const maxHoursSetting = await prisma.setting.findUnique({ where: { key: 'max_booking_hours' } });
-    const maxBookingHours = maxHoursSetting ? Number(maxHoursSetting.value) : 4;
-    if (hours <= 0 || hours > maxBookingHours) {
+    // Enforce court-operation rules (min/max hours + advance-booking window).
+    // Values are admin-configurable in Settings; fall back to sane defaults.
+    const opSettings = await prisma.setting.findMany({
+      where: { key: { in: ['min_booking_hours', 'max_booking_hours', 'booking_advance_days'] } },
+    });
+    const opMap = Object.fromEntries(opSettings.map(s => [s.key, Number(s.value)]));
+    const minBookingHours = opMap.min_booking_hours || 1;
+    const maxBookingHours = opMap.max_booking_hours || 4;
+    const advanceDays     = opMap.booking_advance_days || 14;
+
+    if (hours < minBookingHours || hours > maxBookingHours) {
       return res.status(400).json({
         success: false,
-        message: `Booking duration must be between 1 and ${maxBookingHours} hours`,
+        message: `Booking duration must be between ${minBookingHours} and ${maxBookingHours} hours`,
+      });
+    }
+
+    // Advance-booking window: users may book from today up to (advanceDays - 1) days
+    // ahead — i.e. `advanceDays` selectable calendar days, matching the date picker.
+    // Dates are compared in Bangkok calendar terms against the stored UTC-midnight date.
+    const bkkNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    const todayCal = new Date(Date.UTC(bkkNow.getUTCFullYear(), bkkNow.getUTCMonth(), bkkNow.getUTCDate()));
+    const lastBookableCal = new Date(todayCal);
+    lastBookableCal.setUTCDate(lastBookableCal.getUTCDate() + (advanceDays - 1));
+    if (queryDate < todayCal) {
+      return res.status(400).json({ success: false, message: 'Cannot book a date in the past' });
+    }
+    if (queryDate > lastBookableCal) {
+      return res.status(400).json({
+        success: false,
+        message: `Bookings can only be made up to ${advanceDays} days in advance`,
       });
     }
 
@@ -667,6 +691,24 @@ router.put('/:id/cancel', protect, async (req, res) => {
     }
     if (booking.paymentStatus === 'pending_refund' || booking.paymentStatus === 'refunded') {
       return res.status(400).json({ success: false, message: 'Booking already cancelled or refund already in progress' });
+    }
+
+    // Enforce cancellation window for users (admins may always cancel).
+    // Confirmed bookings can't be cancelled within `cancellation_hours` of the start.
+    // Provisional drafts (no payment yet) are exempt — releasing them is always allowed.
+    if (!isAdmin && booking.bookingStatus === 'confirmed_booking') {
+      const cancelSetting = await prisma.setting.findUnique({ where: { key: 'cancellation_hours' } });
+      const cancellationHours = cancelSetting ? Number(cancelSetting.value) : 24;
+      // Booking start instant: stored UTC-midnight calendar date + Bangkok-local start time.
+      const dateStr = booking.date.toISOString().slice(0, 10);
+      const startInstant = new Date(`${dateStr}T${booking.startTime}:00+07:00`);
+      const hoursUntilStart = (startInstant.getTime() - Date.now()) / (60 * 60 * 1000);
+      if (hoursUntilStart < cancellationHours) {
+        return res.status(400).json({
+          success: false,
+          message: `Bookings can only be cancelled at least ${cancellationHours} hours before the start time.`,
+        });
+      }
     }
 
     // Determine refund based on current state

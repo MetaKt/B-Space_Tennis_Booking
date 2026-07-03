@@ -21,7 +21,7 @@ const AdminCourtManagement = () => {
     try {
       const res = await courtAPI.getAll();
       setCourts(res.data.data);
-    } catch (e) { toast.error('Failed to load courts'); }
+    } catch (e) { toast.error('โหลดข้อมูลคอร์ทไม่สำเร็จ'); }
     finally { setLoading(false); }
   };
 
@@ -43,19 +43,19 @@ const AdminCourtManagement = () => {
   };
 
   const handleSave = async () => {
-    if (!form.courtNumber || !form.name || !form.pricePerHour) return toast.error('Fill required fields');
+    if (!form.courtNumber || !form.name || !form.pricePerHour) return toast.error('กรุณากรอกข้อมูลที่จำเป็น');
     try {
       if (modal === 'create') {
         await courtAPI.create(form);
-        toast.success('Court created');
+        toast.success('สร้างคอร์ทแล้ว');
       } else {
         await courtAPI.update(modal.id, form);
-        toast.success('Court updated');
+        toast.success('อัปเดตคอร์ทแล้ว');
       }
       setModal(null);
       fetchCourts();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save');
+      toast.error(error.response?.data?.message || 'บันทึกไม่สำเร็จ');
     }
   };
 
@@ -67,7 +67,7 @@ const AdminCourtManagement = () => {
         await courtAPI.update(court.id, { isActive: true });
       }
       fetchCourts();
-    } catch (e) { toast.error('Failed to update'); }
+    } catch (e) { toast.error('อัปเดตไม่สำเร็จ'); }
   };
 
   const inputStyle = {
@@ -102,8 +102,8 @@ const AdminCourtManagement = () => {
                 <tr>
                   <th>#</th>
                   <th>{t('admin.name')}</th>
-                  <th>{t('admin.price')}/hr</th>
-                  <th>Hours</th>
+                  <th>{t('admin.price')}/ชม.</th>
+                  <th>เวลาทำการ</th>
                   <th>{t('admin.status')}</th>
                   <th>{t('admin.actions')}</th>
                 </tr>
@@ -117,14 +117,14 @@ const AdminCourtManagement = () => {
                     <td>{court.openTime} – {court.closeTime}</td>
                     <td>
                       <span className={`status-badge ${court.isActive ? 'status-confirmed' : 'status-cancelled'}`}>
-                        {court.isActive ? 'Active' : 'Inactive'}
+                        {court.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                       </span>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button onClick={() => openEdit(court)}
                           style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '3px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>
-                          Edit
+                          แก้ไข
                         </button>
                         <button onClick={() => handleToggle(court)}
                           style={{
@@ -132,7 +132,7 @@ const AdminCourtManagement = () => {
                             background: court.isActive ? '#fee2e2' : '#dcfce7',
                             color:      court.isActive ? '#ef4444' : '#16a34a',
                           }}>
-                          {court.isActive ? 'Deactivate' : 'Activate'}
+                          {court.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
                         </button>
                       </div>
                     </td>
@@ -154,37 +154,37 @@ const AdminCourtManagement = () => {
 
             <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Court # *</label>
+                <label style={labelStyle}>หมายเลขคอร์ท *</label>
                 <input style={inputStyle} type="number" value={form.courtNumber}
                   onChange={(e) => setForm({ ...form, courtNumber: e.target.value })} />
               </div>
               <div style={{ flex: 2 }}>
-                <label style={labelStyle}>Name *</label>
+                <label style={labelStyle}>ชื่อ *</label>
                 <input style={inputStyle} value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>Description</label>
+              <label style={labelStyle}>รายละเอียด</label>
               <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>Price / hr (฿) *</label>
+              <label style={labelStyle}>ราคา/ชม. (฿) *</label>
               <input style={inputStyle} type="number" value={form.pricePerHour}
                 onChange={(e) => setForm({ ...form, pricePerHour: e.target.value })} />
             </div>
 
             <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Open Time</label>
+                <label style={labelStyle}>เวลาเปิด</label>
                 <input style={inputStyle} type="time" value={form.openTime}
                   onChange={(e) => setForm({ ...form, openTime: e.target.value })} />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Close Time</label>
+                <label style={labelStyle}>เวลาปิด</label>
                 <input style={inputStyle} type="time" value={form.closeTime}
                   onChange={(e) => setForm({ ...form, closeTime: e.target.value })} />
               </div>

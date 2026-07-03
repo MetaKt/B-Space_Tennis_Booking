@@ -18,7 +18,7 @@ const AdminBusinessSummary = () => {
       const res = await adminAPI.getBusinessSummary(period);
       setData(res.data.data);
     } catch (error) {
-      toast.error('Failed to load business summary');
+      toast.error('โหลดสรุปธุรกิจไม่สำเร็จ');
     } finally {
       setLoading(false);
     }
@@ -30,22 +30,22 @@ const AdminBusinessSummary = () => {
   const downloadCSV = () => {
     if (!data) return;
     const lines = [];
-    const periodLabel = period.charAt(0).toUpperCase() + period.slice(1);
+    const periodLabel = PERIOD_LABELS[period] || period;
 
-    lines.push(`B-Space Business Summary — ${periodLabel}`);
-    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push(`สรุปธุรกิจ B-Space — ${periodLabel}`);
+    lines.push(`สร้างเมื่อ: ${new Date().toLocaleString()}`);
     lines.push('');
 
-    lines.push('OVERVIEW');
-    lines.push(`Total Revenue,฿${(data.totalRevenue || 0).toLocaleString()}`);
-    lines.push(`Total Bookings,${data.totalBookings || 0}`);
-    lines.push(`New Users,${data.newUsers || 0}`);
+    lines.push('ภาพรวม');
+    lines.push(`รายได้รวม,฿${(data.totalRevenue || 0).toLocaleString()}`);
+    lines.push(`ยอดจองทั้งหมด,${data.totalBookings || 0}`);
+    lines.push(`ผู้ใช้ใหม่,${data.newUsers || 0}`);
     const avg = data.totalBookings > 0 ? Math.round(data.totalRevenue / data.totalBookings) : 0;
-    lines.push(`Avg per Booking,฿${avg.toLocaleString()}`);
+    lines.push(`เฉลี่ยต่อการจอง,฿${avg.toLocaleString()}`);
     lines.push('');
 
-    lines.push('BOOKINGS BY STATUS');
-    lines.push('Status,Count');
+    lines.push('การจองตามสถานะ');
+    lines.push('สถานะ,จำนวน');
     if (data.bookingsByStatus) {
       Object.entries(data.bookingsByStatus).forEach(([status, count]) => {
         lines.push(`${status},${count}`);
@@ -53,29 +53,29 @@ const AdminBusinessSummary = () => {
     }
     lines.push('');
 
-    lines.push('COURT UTILIZATION');
-    lines.push('Court,Bookings,Total Hours');
+    lines.push('การใช้งานคอร์ท');
+    lines.push('คอร์ท,จำนวนการจอง,ชั่วโมงรวม');
     (data.courtUtilization || []).forEach(c => {
-      lines.push(`"Court ${c.courtNumber} - ${c.name}",${c.bookings},${c.totalHours}`);
+      lines.push(`"คอร์ท ${c.courtNumber} - ${c.name}",${c.bookings},${c.totalHours}`);
     });
     lines.push('');
 
-    lines.push('COACH REVENUE');
-    lines.push('Coach,Sessions,Revenue (฿)');
+    lines.push('ชั่วโมงและรายได้โค้ช');
+    lines.push('โค้ช,ชั่วโมงรวม,จำนวนครั้ง,รายได้ (฿)');
     (data.coachRevenue || []).forEach(c => {
-      lines.push(`"${c.name}",${c.sessions},${c.revenue}`);
+      lines.push(`"${c.name}",${c.hours || 0},${c.sessions},${c.revenue}`);
     });
     lines.push('');
 
-    lines.push('TOP CUSTOMERS');
-    lines.push('Customer,Bookings,Total Spent (฿)');
+    lines.push('ลูกค้าอันดับต้น');
+    lines.push('ลูกค้า,จำนวนการจอง,ยอดใช้จ่ายรวม (฿)');
     (data.topCustomers || []).forEach(c => {
       lines.push(`"${c.name}",${c.bookings},${c.totalSpent}`);
     });
     lines.push('');
 
-    lines.push('DAILY REVENUE');
-    lines.push('Date,Revenue (฿),Bookings');
+    lines.push('รายได้รายวัน');
+    lines.push('วันที่,รายได้ (฿),จำนวนการจอง');
     (data.dailyRevenue || []).forEach(d => {
       lines.push(`${d.date},${d.revenue},${d.bookings}`);
     });
@@ -101,7 +101,7 @@ const AdminBusinessSummary = () => {
     borderTop: '3px solid #ffde17',
   };
 
-  const PERIOD_LABELS = { week: 'This Week', month: 'This Month', year: 'This Year' };
+  const PERIOD_LABELS = { week: 'สัปดาห์นี้', month: 'เดือนนี้', year: 'ปีนี้' };
 
   return (
     <AdminLayout activePage="business">
@@ -145,7 +145,7 @@ const AdminBusinessSummary = () => {
                 opacity: !data || loading ? 0.5 : 1,
               }}
             >
-              Export CSV
+              ส่งออก CSV
             </button>
           </div>
         </div>
@@ -157,19 +157,19 @@ const AdminBusinessSummary = () => {
             {/* 4 Metric Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '14px', marginBottom: '24px' }}>
               <div style={cardStyle}>
-                <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px', marginBottom: '6px' }}>Total Revenue</div>
+                <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px', marginBottom: '6px' }}>รายได้รวม</div>
                 <div style={{ fontSize: '28px', fontWeight: 800, color: '#061823', fontFamily: 'var(--font-display)' }}>฿{(data.totalRevenue || 0).toLocaleString()}</div>
               </div>
               <div style={cardStyle}>
-                <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px', marginBottom: '6px' }}>Total Bookings</div>
+                <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px', marginBottom: '6px' }}>ยอดจองทั้งหมด</div>
                 <div style={{ fontSize: '28px', fontWeight: 800, color: '#061823', fontFamily: 'var(--font-display)' }}>{data.totalBookings || 0}</div>
               </div>
               <div style={cardStyle}>
-                <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px', marginBottom: '6px' }}>New Users</div>
+                <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px', marginBottom: '6px' }}>ผู้ใช้ใหม่</div>
                 <div style={{ fontSize: '28px', fontWeight: 800, color: '#061823', fontFamily: 'var(--font-display)' }}>{data.newUsers || 0}</div>
               </div>
               <div style={cardStyle}>
-                <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px', marginBottom: '6px' }}>Avg per Booking</div>
+                <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px', marginBottom: '6px' }}>เฉลี่ยต่อการจอง</div>
                 <div style={{ fontSize: '28px', fontWeight: 800, color: '#061823', fontFamily: 'var(--font-display)' }}>
                   ฿{data.totalBookings > 0 ? Math.round(data.totalRevenue / data.totalBookings).toLocaleString() : 0}
                 </div>
@@ -180,34 +180,34 @@ const AdminBusinessSummary = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
               <div style={{ ...cardStyle, borderTop: '3px solid #e5e7eb' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '16px' }}>
-                  Bookings by Status
+                  การจองตามสถานะ
                 </h3>
                 {data.bookingsByStatus && Object.entries(data.bookingsByStatus).map(([status, count]) => (
                   <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
-                    <span style={{ fontSize: '13px', textTransform: 'capitalize', color: '#374151' }}>{status.replace('_', ' ')}</span>
+                    <span style={{ fontSize: '13px', color: '#374151' }}>{t(`common.${status}`)}</span>
                     <span style={{ fontWeight: 700, fontSize: '15px', color: '#061823' }}>{count}</span>
                   </div>
                 ))}
                 {(!data.bookingsByStatus || Object.keys(data.bookingsByStatus).length === 0) && (
-                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>No data</p>
+                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>ไม่มีข้อมูล</p>
                 )}
               </div>
 
               <div style={{ ...cardStyle, borderTop: '3px solid #e5e7eb' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '16px' }}>
-                  Court Utilization
+                  การใช้งานคอร์ท
                 </h3>
                 {(data.courtUtilization || []).map((court, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
-                    <span style={{ fontSize: '13px', color: '#374151' }}>Court {court.courtNumber} — {court.name}</span>
+                    <span style={{ fontSize: '13px', color: '#374151' }}>คอร์ท {court.courtNumber} — {court.name}</span>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 700, fontSize: '14px', color: '#061823' }}>{court.totalHours} hrs</div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{court.bookings} bookings</div>
+                      <div style={{ fontWeight: 700, fontSize: '14px', color: '#061823' }}>{court.totalHours} ชม.</div>
+                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{court.bookings} การจอง</div>
                     </div>
                   </div>
                 ))}
                 {(!data.courtUtilization || data.courtUtilization.length === 0) && (
-                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>No data</p>
+                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>ไม่มีข้อมูล</p>
                 )}
               </div>
             </div>
@@ -216,25 +216,25 @@ const AdminBusinessSummary = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
               <div style={{ ...cardStyle, borderTop: '3px solid #e5e7eb' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '16px' }}>
-                  Coach Revenue
+                  ชั่วโมงและรายได้โค้ช
                 </h3>
                 {(data.coachRevenue || []).map((coach, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{coach.name}</div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{coach.sessions} sessions</div>
+                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{coach.hours || 0} ชม. · {coach.sessions} ครั้ง</div>
                     </div>
                     <span style={{ fontWeight: 700, color: '#073659' }}>฿{(coach.revenue || 0).toLocaleString()}</span>
                   </div>
                 ))}
                 {(!data.coachRevenue || data.coachRevenue.length === 0) && (
-                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>No data</p>
+                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>ไม่มีข้อมูล</p>
                 )}
               </div>
 
               <div style={{ ...cardStyle, borderTop: '3px solid #e5e7eb' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '16px' }}>
-                  Top Customers
+                  ลูกค้าอันดับต้น
                 </h3>
                 {(data.topCustomers || []).map((customer, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
@@ -242,13 +242,13 @@ const AdminBusinessSummary = () => {
                       <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
                         {i === 0 ? '01' : i === 1 ? '02' : i === 2 ? '03' : `${String(i + 1).padStart(2,'0')}`}. {customer.name}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{customer.bookings} bookings</div>
+                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{customer.bookings} การจอง</div>
                     </div>
                     <span style={{ fontWeight: 700, color: '#073659' }}>฿{(customer.totalSpent || 0).toLocaleString()}</span>
                   </div>
                 ))}
                 {(!data.topCustomers || data.topCustomers.length === 0) && (
-                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>No data</p>
+                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>ไม่มีข้อมูล</p>
                 )}
               </div>
             </div>
@@ -257,7 +257,7 @@ const AdminBusinessSummary = () => {
             {data.dailyRevenue && data.dailyRevenue.length > 0 && (
               <div style={{ ...cardStyle, borderTop: '3px solid #e5e7eb' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '20px' }}>
-                  Daily Revenue
+                  รายได้รายวัน
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '160px', padding: '0 4px' }}>
                   {data.dailyRevenue.map((day, i) => {
@@ -292,7 +292,7 @@ const AdminBusinessSummary = () => {
             )}
           </>
         ) : (
-          <p style={{ color: '#9ca3af' }}>No data available</p>
+          <p style={{ color: '#9ca3af' }}>ไม่มีข้อมูล</p>
         )}
       </div>
     </AdminLayout>

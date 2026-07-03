@@ -59,7 +59,7 @@ const AdminLayout = ({ children, activePage }) => {
             color: '#ffde17',
             fontFamily: 'var(--font-display)',
           }}>
-            {user?.role === 'master_admin' ? 'Master Admin' : 'Admin Panel'}
+            {user?.role === 'master_admin' ? 'ผู้ดูแลระบบสูงสุด' : 'แผงผู้ดูแลระบบ'}
           </span>
         </div>
 
@@ -138,7 +138,7 @@ export { AdminLayout };
 // DASHBOARD PAGE
 // ============================================================
 
-const PERIOD_LABELS = { today: 'Today', week: 'This Week', month: 'This Month', year: 'This Year' };
+const PERIOD_LABELS = { today: 'วันนี้', week: 'สัปดาห์นี้', month: 'เดือนนี้', year: 'ปีนี้' };
 
 const AdminDashboard = () => {
   const { t } = useTranslation();
@@ -181,7 +181,7 @@ const AdminDashboard = () => {
       onClick: () => navigate('/admin/bookings?period=today'),
     },
     {
-      label: 'Total Bookings',
+      label: 'ยอดจองทั้งหมด',
       value: periodCount,
       color: '#073659',
       isPeriod: true,
@@ -307,8 +307,8 @@ const AdminDashboard = () => {
                   color: '#073659',
                 }}
               >
-                <span>{stats.pendingPayments} payment slip{stats.pendingPayments > 1 ? 's' : ''} waiting for your confirmation</span>
-                <span style={{ fontSize: '12px', fontFamily: 'var(--font-display)', letterSpacing: '0.1px', textTransform: 'uppercase' }}>Review &rarr;</span>
+                <span>มีสลิปการชำระเงินรอการยืนยัน {stats.pendingPayments} รายการ</span>
+                <span style={{ fontSize: '12px', fontFamily: 'var(--font-display)', letterSpacing: '0.1px', textTransform: 'uppercase' }}>ตรวจสอบ &rarr;</span>
               </div>
             )}
 
@@ -328,18 +328,18 @@ const AdminDashboard = () => {
                   onClick={() => navigate('/admin/bookings?period=today')}
                   style={{ fontSize: '12px', color: '#073659', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
                 >
-                  View All
+                  ดูทั้งหมด
                 </button>
               </div>
 
               {todayBookings.length === 0 ? (
-                <p style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>No bookings today</p>
+                <p style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>ไม่มีการจองวันนี้</p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table className="admin-table">
                     <thead>
                       <tr>
-                        <th>Booking ID</th>
+                        <th>รหัสการจอง</th>
                         <th>{t('admin.user')}</th>
                         <th>{t('admin.court')}</th>
                         <th>{t('booking.time')}</th>
@@ -353,7 +353,7 @@ const AdminDashboard = () => {
                         <tr key={b.id} className={b.paymentStatus === 'submitted' ? 'row-needs-action' : ''}>
                           <td style={{ fontSize: '11px', fontFamily: 'monospace', color: '#6b7280' }}>{b.bookingId}</td>
                           <td style={{ fontWeight: 500 }}>{b.user?.name}</td>
-                          <td>Court {b.court?.courtNumber}</td>
+                          <td>คอร์ท {b.court?.courtNumber}</td>
                           <td>{b.startTime} - {b.endTime}</td>
                           <td><span className={`status-badge status-${b.status}`}>{t(`common.${b.status}`)}</span></td>
                           <td><span className={`status-badge status-${b.paymentStatus}`}>{t(`common.${b.paymentStatus}`)}</span></td>
