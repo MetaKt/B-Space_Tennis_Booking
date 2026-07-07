@@ -49,10 +49,10 @@ const AdminLayout = ({ children, activePage }) => {
           <img
             src="/B-Space_Logo_removedbg.png"
             alt="B-Space"
-            style={{ height: '36px', display: 'block', marginBottom: '10px' }}
+            style={{ height: '72px', display: 'block', marginBottom: '10px' }}
           />
           <span style={{
-            fontSize: '10px',
+            fontSize: '15px',
             fontWeight: 700,
             letterSpacing: '0.2px',
             textTransform: 'uppercase',
@@ -64,7 +64,7 @@ const AdminLayout = ({ children, activePage }) => {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 0' }}>
+        <nav style={{ flex: 1, padding: '14px 0' }}>
           {menuItems.map((item) => {
             const isActive = activePage === item.key;
             return (

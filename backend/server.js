@@ -30,18 +30,26 @@ connectDB();
 app.use(helmet());
 
 // ─── Security: CORS ───────────────────────────────────────────────────────────
-// Development: allow localhost. Production: only the deployed frontend origin.
-const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [process.env.FRONTEND_URL].filter(Boolean)
-  : [
-      'http://localhost:3000', 'http://127.0.0.1:3000',
-      'http://localhost:3001', 'http://127.0.0.1:3001',
-    ];
+// Development: allow localhost + any private-LAN origin (so a phone on the same
+// Wi-Fi can reach the dev server regardless of the PC's current DHCP-assigned IP).
+// Production: only the deployed frontend origin.
+const allowedOrigins = [
+  'http://localhost:3000', 'http://127.0.0.1:3000',
+  'http://localhost:3001', 'http://127.0.0.1:3001',
+];
+// RFC 1918 private ranges: 10.x.x.x, 172.16-31.x.x, 192.168.x.x — any port.
+const isPrivateLanOrigin = (origin) =>
+  /^https?:\/\/(10(\.\d{1,3}){3}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2}|192\.168(\.\d{1,3}){2})(:\d+)?$/.test(origin);
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, Postman)
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin) return callback(null, true);
+    if (process.env.NODE_ENV === 'production') {
+      if (origin === process.env.FRONTEND_URL) return callback(null, true);
+    } else if (allowedOrigins.includes(origin) || isPrivateLanOrigin(origin)) {
+      return callback(null, true);
+    }
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,

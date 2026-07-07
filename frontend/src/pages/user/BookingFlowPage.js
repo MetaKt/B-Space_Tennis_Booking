@@ -41,6 +41,9 @@ const BookingFlowPage = () => {
   const currentUserId = user?._id || user?.id;
 
   const [step, setStep] = useState(0);
+  // Steps are rendered conditionally within this one page (not separate routes), so the
+  // browser has no reason to reset scroll position on its own — do it manually.
+  useEffect(() => { window.scrollTo(0, 0); }, [step]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(!!resumeId);

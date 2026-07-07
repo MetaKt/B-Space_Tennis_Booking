@@ -226,10 +226,15 @@ body {
   width: 100%;
 }
 
-.btn-primary:hover {
-  background: var(--blue-800);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(7, 54, 89, 0.35);
+/* :hover rules below are wrapped in this feature query so touchscreens never register
+   a hover state — without it, WebKit consumes the first tap to simulate ":hover" and
+   only fires the click on a second tap (the classic iOS "double-tap" bug). */
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: var(--blue-800);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(7, 54, 89, 0.35);
+  }
 }
 
 .btn-primary:disabled {
@@ -244,8 +249,10 @@ body {
   color: var(--gray-700);
 }
 
-.btn-secondary:hover {
-  background: var(--gray-200);
+@media (hover: hover) and (pointer: fine) {
+  .btn-secondary:hover {
+    background: var(--gray-200);
+  }
 }
 
 .btn-outline {
@@ -255,9 +262,11 @@ body {
   letter-spacing: 0.1px;
 }
 
-.btn-outline:hover {
-  background: var(--blue-700);
-  color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .btn-outline:hover {
+    background: var(--blue-700);
+    color: #fff;
+  }
 }
 
 .btn-danger {
@@ -279,10 +288,12 @@ body {
   border-bottom: 3px solid rgba(0,0,0,0.15);
 }
 
-.btn-gold:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(255, 222, 23, 0.45);
-  border-bottom-color: rgba(0,0,0,0.2);
+@media (hover: hover) and (pointer: fine) {
+  .btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(255, 222, 23, 0.45);
+    border-bottom-color: rgba(0,0,0,0.2);
+  }
 }
 
 .btn-gold:disabled {
@@ -391,8 +402,10 @@ body {
   font-weight: bold;
 }
 
-.icon-btn:hover {
-  background: rgba(255,255,255,0.2);
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover {
+    background: rgba(255,255,255,0.2);
+  }
 }
 
 .credit-card {
@@ -456,9 +469,11 @@ body {
   gap: 10px;
 }
 
-.book-now-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(255, 222, 23, 0.5);
+@media (hover: hover) and (pointer: fine) {
+  .book-now-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(255, 222, 23, 0.5);
+  }
 }
 
 .book-now-btn:active {
@@ -507,9 +522,11 @@ body {
   transition: all 0.18s ease;
 }
 
-.booking-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateX(2px);
+@media (hover: hover) and (pointer: fine) {
+  .booking-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateX(2px);
+  }
 }
 
 .booking-card-header {
@@ -598,8 +615,10 @@ body {
   text-align: left;
 }
 
-.dropdown-item:hover {
-  background: var(--gray-50);
+@media (hover: hover) and (pointer: fine) {
+  .dropdown-item:hover {
+    background: var(--gray-50);
+  }
 }
 
 .dropdown-item.danger {
@@ -702,7 +721,9 @@ body {
   transition: all 0.2s;
 }
 
-.date-cell:hover { border-color: var(--gold-400); background: rgba(255,222,23,0.05); }
+@media (hover: hover) and (pointer: fine) {
+  .date-cell:hover { border-color: var(--gold-400); background: rgba(255,222,23,0.05); }
+}
 .date-cell.selected {
   background: var(--blue-700);
   color: #fff;
@@ -733,10 +754,12 @@ body {
   transition: all 0.15s ease;
 }
 
-.court-card:hover {
-  border-color: var(--gray-300);
-  border-left-color: var(--gold-400);
-  box-shadow: var(--shadow-sm);
+@media (hover: hover) and (pointer: fine) {
+  .court-card:hover {
+    border-color: var(--gray-300);
+    border-left-color: var(--gold-400);
+    box-shadow: var(--shadow-sm);
+  }
 }
 
 .court-card.selected {
@@ -796,10 +819,12 @@ body {
   color: var(--blue-700);
 }
 
-.time-slot:hover:not(.booked) {
-  border-color: var(--gold-500);
-  background: rgba(255, 222, 23, 0.06);
-  transform: scale(1.03);
+@media (hover: hover) and (pointer: fine) {
+  .time-slot:hover:not(.booked) {
+    border-color: var(--gold-500);
+    background: rgba(255, 222, 23, 0.06);
+    transform: scale(1.03);
+  }
 }
 
 .time-slot.selected {
@@ -832,9 +857,11 @@ body {
   transition: all 0.15s ease;
 }
 
-.coach-option:hover {
-  border-left-color: var(--gold-400);
-  box-shadow: var(--shadow-sm);
+@media (hover: hover) and (pointer: fine) {
+  .coach-option:hover {
+    border-left-color: var(--gold-400);
+    box-shadow: var(--shadow-sm);
+  }
 }
 
 .coach-option.selected {
@@ -967,9 +994,11 @@ body {
   margin-top: 8px;
 }
 
-.file-upload:hover {
-  border-color: var(--gold-500);
-  background: rgba(255, 222, 23, 0.05);
+@media (hover: hover) and (pointer: fine) {
+  .file-upload:hover {
+    border-color: var(--gold-500);
+    background: rgba(255, 222, 23, 0.05);
+  }
 }
 
 .file-upload-icon {
@@ -1109,9 +1138,11 @@ body {
   font-family: var(--font-body);
 }
 
-.sidebar-link:hover {
-  background: rgba(255,255,255,0.08);
-  color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .sidebar-link:hover {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+  }
 }
 
 .sidebar-link.active {
@@ -1228,8 +1259,10 @@ body {
   border-bottom: 1px solid var(--gray-50);
 }
 
-.admin-table tr:hover td {
-  background: var(--gray-50);
+@media (hover: hover) and (pointer: fine) {
+  .admin-table tr:hover td {
+    background: var(--gray-50);
+  }
 }
 
 /* Rows that need admin action (payment slip submitted) */
@@ -1237,8 +1270,10 @@ body {
   background: rgba(255, 222, 23, 0.1);
   border-left: 3px solid var(--gold-500);
 }
-.admin-table tr.row-needs-action:hover td {
-  background: rgba(255, 222, 23, 0.18);
+@media (hover: hover) and (pointer: fine) {
+  .admin-table tr.row-needs-action:hover td {
+    background: rgba(255, 222, 23, 0.18);
+  }
 }
 
 /* ===== MODAL ===== */
@@ -1307,8 +1342,10 @@ body {
   transition: color 0.2s;
 }
 
-.modal-close:hover {
-  color: var(--gray-600);
+@media (hover: hover) and (pointer: fine) {
+  .modal-close:hover {
+    color: var(--gray-600);
+  }
 }
 
 /* ===== ANIMATIONS ===== */
@@ -1374,10 +1411,12 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-.court-visual-card:hover {
-  border-color: var(--blue-400);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .court-visual-card:hover {
+    border-color: var(--blue-400);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
 }
 
 .court-visual-card.selected {
@@ -1627,6 +1666,8 @@ body {
   transition: background 0.15s;
 }
 
-.page-back-btn:hover {
-  background: rgba(255,255,255,0.2);
+@media (hover: hover) and (pointer: fine) {
+  .page-back-btn:hover {
+    background: rgba(255,255,255,0.2);
+  }
 }

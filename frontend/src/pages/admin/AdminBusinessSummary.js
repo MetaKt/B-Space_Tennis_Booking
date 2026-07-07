@@ -267,7 +267,7 @@ const AdminBusinessSummary = () => {
                     return (
                       <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                         <div style={{ fontSize: '9px', fontWeight: 600, color: '#9ca3af', minHeight: '14px' }}>
-                          {hasRevenue ? `฿${Math.round(day.revenue / 1000)}k` : ''}
+                          {hasRevenue ? `฿${Math.round(day.revenue)}` : ''}
                         </div>
                         <div
                           title={`${day.date}: ฿${day.revenue?.toLocaleString()}`}
