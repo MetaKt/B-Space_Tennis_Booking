@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { bookingAPI } from '../../utils/api';
+import { shareOrDownloadImage } from '../../utils/shareImage';
 import { useAuth } from '../../context/AuthContext';
 
 const PAYMENT_QR_IMAGE = '/QR_Code.png';
-const DOWNLOAD_QR_IMAGE = '/QR_Code_Full.jpg';
+const DOWNLOAD_QR_IMAGE = '/QR_Code_FULL.jpg';
 
 const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
   const { t } = useTranslation();
@@ -174,14 +175,13 @@ const PendingPaymentModal = ({ booking, onClose, onSuccess }) => {
             QR Code or Bank Details
           </p>
           {PAYMENT_QR_IMAGE ? (
-            <a
-              href={DOWNLOAD_QR_IMAGE}
-              download="B-Space.payment-qr.png"
+            <button
+              onClick={() => shareOrDownloadImage(DOWNLOAD_QR_IMAGE, 'B-Space.payment-qr.png')}
               className="btn btn-outline"
-              style={{ display: 'block', marginTop: '8px', fontSize: '12px', padding: '5px 16px', textDecoration: 'none', textAlign: 'center' }}
+              style={{ display: 'block', width: '100%', marginTop: '8px', fontSize: '12px', padding: '5px 16px', textAlign: 'center' }}
             >
               Download QR
-            </a>
+            </button>
           ) : (
             <button className="btn btn-outline" disabled style={{ display: 'block', width: '100%', marginTop: '8px', fontSize: '12px', padding: '5px 16px', opacity: 0.45 }}>
               Download QR

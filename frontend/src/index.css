@@ -670,6 +670,11 @@ body {
 
 .booking-content {
   padding: 20px;
+  /* iOS Safari collapses its bottom tab bar while scrolling; a tap that close to the
+     screen edge can get eaten by Safari re-expanding its chrome instead of reaching the
+     button underneath. Extra bottom clearance (plus the home-indicator safe area) keeps
+     the primary action buttons (Next/Pay/Submit) comfortably clear of that zone. */
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
 }
 
 .step-indicator {

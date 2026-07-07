@@ -6,6 +6,7 @@ import { format, addDays } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { courtAPI, bookingAPI, settingsAPI } from '../../utils/api';
+import { shareOrDownloadImage } from '../../utils/shareImage';
 import CourtSelector from '../../components/user/CourtSelector';
 
 const PAYMENT_QR_IMAGE = '/QR_Code.png';
@@ -706,7 +707,7 @@ const BookingFlowPage = () => {
                   {settings.payment?.payment_account_name}
                 </p>
                 {PAYMENT_QR_IMAGE ? (
-                  <a href={DOWNLOAD_QR_IMAGE} download="B-Space.payment-qr.png" className="btn btn-outline" style={{ display: 'inline-block', marginTop: '10px', fontSize: '13px', padding: '6px 18px', textDecoration: 'none' }}>Download QR</a>
+                  <button onClick={() => shareOrDownloadImage(DOWNLOAD_QR_IMAGE, 'B-Space.payment-qr.png')} className="btn btn-outline" style={{ display: 'inline-block', marginTop: '10px', fontSize: '13px', padding: '6px 18px' }}>Download QR</button>
                 ) : (
                   <button className="btn btn-outline" disabled style={{ marginTop: '10px', fontSize: '13px', padding: '6px 18px', opacity: 0.45 }}>Download QR</button>
                 )}
