@@ -24,7 +24,7 @@ const { Prisma } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 const { protect, adminAccess } = require('../middleware/auth');
 const { getIO } = require('../lib/socket');
-const { getUploader, getFilePath, FILTERS } = require('../lib/storage');
+const { getUploader, saveFile, FILTERS } = require('../lib/storage');
 
 const { autoCompletePassedBookings } = require('../lib/bookingHelpers');
 
@@ -552,7 +552,7 @@ router.post('/:id/payment-slip', protect, upload.single('paymentSlip'), async (r
     await prisma.paymentSlip.create({
       data: {
         bookingId: booking.id,
-        filePath: getFilePath('payments', req.file.filename),
+        filePath: await saveFile('payments', req.file),
       },
     });
 

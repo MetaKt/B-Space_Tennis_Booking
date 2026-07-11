@@ -11,6 +11,7 @@ const fs = require('fs');
 const connectDB = require('./config/db');
 const { init: initSocket } = require('./lib/socket');
 const aliasId = require('./middleware/aliasId');
+const { isCloudStorage, getSignedUrl } = require('./lib/storage');
 
 // Route imports
 const authRoutes = require('./routes/auth');
@@ -75,22 +76,44 @@ app.use(express.urlencoded({ extended: true }));
 // Mark as cross-origin so the frontend dev server (different port/origin) can load
 // images (payment slips). Helmet's default
 // Cross-Origin-Resource-Policy is "same-origin", which otherwise blocks <img> loads.
-app.use(
-  '/uploads',
-  (req, res, next) => {
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    next();
-  },
-  express.static(path.join(__dirname, 'uploads'))
-);
+//
+// Local disk mode (default, no Supabase env vars set): serve straight from disk.
+// Cloud mode (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY set): the file isn't on
+// this server at all — redirect to a freshly generated Supabase signed URL.
+// Either way the DB-stored path is the same `/uploads/<folder>/<filename>`
+// shape, so nothing else in the app needs to know which mode is active.
+if (isCloudStorage) {
+  app.get('/uploads/:folder/:filename', async (req, res) => {
+    try {
+      const url = await getSignedUrl(req.params.folder, req.params.filename);
+      // Same reasoning as the local-disk branch below: without this, Helmet's
+      // default same-origin CORP header blocks the <img> load from a
+      // different-origin frontend (and the redirect response itself is
+      // subject to the CORP check, not just the final Supabase response).
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.redirect(url);
+    } catch (error) {
+      res.status(404).json({ success: false, message: 'File not found' });
+    }
+  });
+} else {
+  app.use(
+    '/uploads',
+    (req, res, next) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      next();
+    },
+    express.static(path.join(__dirname, 'uploads'))
+  );
+
+  // Ensure upload directories exist (local disk mode only)
+  ['uploads/payments'].forEach(dir => {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  });
+}
 
 // _id alias — adds _id = id to all response objects for frontend compatibility
 app.use(aliasId);
-
-// Ensure upload directories exist
-['uploads/payments'].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
 
 // API Routes
 app.use('/api/auth', authRoutes);

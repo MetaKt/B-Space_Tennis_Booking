@@ -1,9 +1,11 @@
 # Product Requirements Document
 ## Tennis Court Booking Platform
 
-**Version:** 1.4
-**Date:** 2026-06-16
-**Status:** In Development
+**Version:** 1.5
+**Date:** 2026-07-11
+**Status:** Ready for Deployment (see §15.1 for pre-flight checklist)
+
+**v1.5 changes:** Finalization pass before deployment. **Payment slips** moved from a single `paymentSlip` string column to a proper `PaymentSlip` table (one booking can now hold multiple slips — e.g. original payment + a second slip after an admin coach-price change — instead of the newest silently overwriting the last; admin slip modal shows the full history). **Upcoming list** now sorts provisional (unpaid draft) bookings to the top regardless of date, since they need the user's attention before they expire. **Business Summary**: "Top Customers" card replaced with a **Utilization Rate** card (booked hours ÷ max possible hours across active courts' open hours for the period × 100); "Coach Hours/Revenue" and "Bookings by Status" cards swapped position; CSV export updated to match. **Booking Management** table gained a **Coach column**. **Admin panel locked to Thai** — a second i18n instance (`adminI18n`) scoped via `<I18nextProvider>` to all `/admin/*` routes, fully decoupled from the user-side language toggle (corrects §14, which previously said admin was English-only). **Court Operations settings are now enforced server-side**, not just stored: `booking_advance_days`, `min_booking_hours`, `max_booking_hours` are checked on `POST /api/bookings`; `cancellation_hours` is checked on `PUT /api/bookings/:id/cancel`. **Avatar feature fully removed** — `avatar` field dropped from `User` and `Coach` (migration `20260701000000_remove_avatar_fields`), upload routes and UI removed. **Timezone bugs fixed**: admin "Today" filters and dashboard stats now use UTC-consistent date-boundary math (was comparing against local server time vs. UTC-stored `@db.Date` columns); booking auto-completion now compares against Bangkok-local wall-clock time via `Intl.DateTimeFormat` (was using UTC hours, causing up to a 7-hour delay). **Mobile UX**: scroll-to-top on booking-flow step change; `:hover` CSS rules scoped to `@media (hover: hover) and (pointer: fine)` (fixes iOS "double-tap to activate hover" on non-native clickable elements); extra bottom padding + safe-area inset on the booking flow (fixes iOS Safari's collapsing tab bar eating taps on Next/Pay/Submit near the bottom edge); QR download now uses the Web Share API to offer "Save to Photos" on phones (iOS + Android), falling back to the original file-download behavior on desktop and unsupported browsers.
 
 **v1.4 changes:** Admin panel finalized. Add-ons feature removed (client cancelled — Settings Add-ons tab removed, BookingFlowPage add-on UI removed, `addOns: []` sent to backend as backward-compat stub). Admin bookings list now excludes provisional bookings (`bookingStatus = confirmed_booking` filter). Past bookings auto-completed lazily on each admin fetch (no cron job needed). Admin booking actions reduced to Cancel only (Complete and No Show removed). Admin dashboard Total Bookings card gets period toggle (today/week/month/year). Admin pages now poll every 30 seconds for near-real-time data while Socket.IO is not yet live on the server; Socket.IO upgrade is a deployment step (see §9). Business Summary: fixed data mapping, added CSV export, yellow bar chart. Court Management: surface field removed. Coach Management: rating column removed.
 
@@ -84,7 +86,7 @@ The system is built locally and intended to be deployed to Supabase (PostgreSQL 
 - Greeting with the B·Space logo and the user's name.
 - **Credit balance card** — displays available booking credits in Thai Baht (฿).
 - **Book Now** button — primary CTA, navigates to `/book`.
-- **Upcoming bookings list** — two card types render here:
+- **Upcoming bookings list** — provisional (unpaid draft) bookings always render first regardless of date, since they're time-sensitive; confirmed bookings follow in date/time order. Two card types render here:
   - **Confirmed booking card** (green/standard): court number + name, date, time, booking ID, court price, coach card (with active/cancelled/changed status badge), and a **Pay Difference** button when `additionalAmountDue > 0` and `paymentStatus = pending` (triggered by admin coach reassignment to a more expensive coach).
   - **Provisional reservation card** (yellow/amber, turns red < 2 min remaining): "⏱ RESERVED" badge, court + date + time, **live mm:ss countdown** ticking down to the 15-minute expiry, and two CTAs — **Release** (cancels the reservation immediately) and **Continue →** (navigates to `/book?resume=<id>` to finish the flow). Card auto-disappears the moment the countdown reaches zero.
 - Language toggle button (EN ↔ TH).
@@ -186,7 +188,8 @@ A yellow banner appears when there are payment slips awaiting review.
 - Lazy auto-complete: past bookings whose session has ended are marked `completed` before results are returned (no cron job required).
 - **Filters:** Search (booking ID / user name / phone), payment status, court, period toggle (All Time / Today / This Week / This Month / This Year).
 - Rows with `paymentStatus = submitted` are highlighted in yellow (`row-needs-action` CSS class) so admins spot them immediately.
-- Payment slip preview: clicking the slip thumbnail opens an inline modal (no new tab) showing booking details, the slip image, and a one-click Confirm button.
+- **Coach column** shows the assigned coach's nickname/name (or outside coach name), or `—` when no coach.
+- Payment slip preview: clicking "ดูสลิป" (shows a count when more than one) opens an inline modal (no new tab) listing every slip ever uploaded for that booking — newest first, each with its upload timestamp — plus a one-click Confirm button. Slips are stored as individual `PaymentSlip` rows so a later upload (e.g. after a coach-price change) never overwrites an earlier one.
 - Auto-refreshes every 30 seconds (see §9.2).
 - **Per-booking actions:**
   - **Confirm Payment** — appears when `paymentStatus = submitted`; clicking changes it to `confirmed`. Slip can be previewed inline before confirming.
@@ -214,6 +217,7 @@ A yellow banner appears when there are payment slips awaiting review.
 - View all registered users with search.
 - Edit user details and adjust credit balance.
 - View user booking history.
+- **Role (title) changes are master-admin only** — the role dropdown is hidden in the edit modal unless `currentUser.role === 'master_admin'`, and the backend independently rejects (`403`) any `role` field in the update payload from a non-master-admin, so this can't be bypassed via a direct API call either.
 
 ### 6.6 Settings (`/admin/settings`)
 
@@ -228,17 +232,20 @@ Two tabs: **Court Operations** and **Payment**. Add-ons tab removed (feature can
 | `cancellation_window_hours` | 24 | Hours before booking that cancellation is allowed |
 | `outside_coach_fee` | ฿100 | Facility fee charged when user brings an outside coach |
 
+All Court Operations settings above are **enforced server-side**, not just stored: `booking_advance_days` bounds the bookable date range on `POST /api/bookings`, `min_booking_hours`/`max_booking_hours` validate the requested duration, and `cancellation_window_hours` blocks `PUT /api/bookings/:id/cancel` for non-admin users within the window on `confirmed_booking` bookings (provisional drafts are exempt — cancelling a draft just releases the hold). Previously these settings saved correctly but had no effect on the user-facing flow.
+
 **Payment tab:**
 Bank name, account number, account name, payment instructions — displayed to users on the payment step QR screen.
 
 ### 6.7 Business Summary (`/admin/business-summary`) — master admin only
 Period selector: Week / Month / Year.
 - **Revenue overview:** Total revenue, total bookings, new users, average revenue per booking.
-- **Bookings by status** breakdown.
+- **Coach hours & revenue:** Hours worked, session count, and revenue per coach.
 - **Court utilization:** Total hours booked and booking count per court.
-- **Coach revenue:** Revenue and sessions per coach.
-- **Top customers:** Ranked by total spend with booking count.
+- **Bookings by status** breakdown.
+- **Utilization rate:** `booked hours ÷ max possible hours × 100`, where max possible hours = sum of each active court's daily open-hours window × number of days in the selected period. Shown with a progress bar and the raw booked/max hour counts.
 - **Daily revenue bar chart:** Visual revenue trend for the selected period.
+- CSV export mirrors the on-screen cards (including utilization rate); `topCustomers` data is still computed and returned by `GET /api/admin/business-summary` for potential future use but is no longer surfaced in the UI or CSV.
 
 ---
 
@@ -347,7 +354,8 @@ When deploying to Railway + Supabase, enable the Socket.IO upgrade on the admin 
 | `Court` | id, courtNumber (unique), name, surface, pricePerHour, openTime, closeTime, isActive |
 | `Coach` | id, name, nickname, specialization[], certifications[], pricePerHour, maxDailyBookings, isActive |
 | `CoachAvailability` | id, coachId, dayOfWeek (0–6), startTime, endTime |
-| `Booking` | id, bookingId (BK format), userId, courtId, coachId, date, startTime, endTime, duration, status, bookingStatus, paymentStatus, coachOption, coachStatus, courtPrice, coachPrice, addOnsTotal, subtotal, creditUsed, totalPrice, additionalAmountDue, addOns (JSON), paymentSlip, expiresAt |
+| `Booking` | id, bookingId (BK format), userId, courtId, coachId, date, startTime, endTime, duration, status, bookingStatus, paymentStatus, coachOption, coachStatus, courtPrice, coachPrice, addOnsTotal, subtotal, creditUsed, totalPrice, additionalAmountDue, addOns (JSON), expiresAt |
+| `PaymentSlip` | id, bookingId (FK, cascade delete), filePath, uploadedAt — one row per slip upload; a booking can have several |
 | `OTP` | id, phone, otp, expiresAt, verified, attempts |
 | `Setting` | id, key (unique), value (JSONB), category |
 
@@ -487,10 +495,10 @@ All CTA buttons and section labels use `text-transform: uppercase` + `letter-spa
 
 ## 14. Internationalization (i18n)
 
-- Two languages: English (`en`) and Thai (`th`).
+- Two languages: English (`en`) and Thai (`th`) on the **user-facing side**.
 - Language preference stored on the user record (`preferredLanguage`).
 - Toggle button on the home page switches language instantly without page reload.
-- Admin panel is not translated (English only).
+- **Admin panel is locked to Thai**, independent of the user-side toggle — a second i18n instance (`adminI18n`, exported from `i18n.js`) is pinned to `lng: 'th'` and scoped to all `/admin/*` routes via `<I18nextProvider i18n={adminI18n}>` in `App.js`. It deliberately does **not** call `.use(initReactI18next)` itself (only the primary instance does) — doing so on both instances would make the second one hijack `useTranslation()` calls app-wide.
 
 ---
 
@@ -552,11 +560,45 @@ All CTA buttons and section labels use `text-transform: uppercase` + `letter-spa
 - [x] **Court Management** — surface field removed from table and modal
 - [x] **Coach Management** — rating column removed from table
 
+### Complete (v1.5 additions)
+- [x] **Multi-slip payment evidence** — `PaymentSlip` table replaces the single `paymentSlip` column; admin modal shows full upload history
+- [x] **Upcoming list ordering** — provisional bookings always sort to the top
+- [x] **Business Summary: Utilization Rate** — replaces Top Customers card; coach hours/status cards reordered; CSV updated
+- [x] **Booking Management: Coach column**
+- [x] **Admin panel locked to Thai** — decoupled from user-side language toggle
+- [x] **Court Operations settings enforced server-side** — advance days, min/max hours, cancellation window
+- [x] **Avatar feature fully removed** — DB fields, upload routes, and UI all deleted
+- [x] **Timezone bug fixes** — admin "Today"/period filters and booking auto-completion now use consistent UTC/Bangkok-local math
+- [x] **Mobile UX fixes** — scroll-to-top on step change, hover-effect double-tap fix, iOS Safari bottom-bar tap-eating fix, QR "Save to Photos" via Web Share API
+
+### Complete (v1.5 additions, continued)
+- [x] **Cloud file storage (dual-mode)** — `lib/storage.js` now auto-detects `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`. Unset (local dev): identical behavior to before, local disk via Multer diskStorage. Set (production): Multer buffers in memory, `saveFile()` uploads to a private Supabase Storage bucket, and `server.js` swaps `express.static('/uploads', ...)` for a `GET /uploads/:folder/:filename` route that redirects to a freshly generated 60-second signed URL. The DB-stored `filePath` format (`/uploads/<folder>/<filename>`) is identical in both modes, so no frontend changes were needed. Verified end-to-end in **both** modes against a real Supabase project: local-disk (file confirmed written to `backend/uploads/payments/`) and cloud (file confirmed uploaded to the Supabase bucket and rendering correctly in the admin slip modal via the signed-URL redirect). Cloud-mode testing caught and fixed a real bug: the new redirect route was missing the `Cross-Origin-Resource-Policy: cross-origin` header that the local-disk route already had, so Helmet's default `same-origin` policy silently blocked the `<img>` load cross-origin — same header now set on both routes.
+
+### Complete (v1.5 additions, continued)
+- [x] **Supabase PostgreSQL provisioned** — all 6 migrations applied via `npx prisma migrate deploy`, verified via direct table listing. Local `.env` reverted to local Postgres immediately after — this connection string now only lives in Railway's env vars (step 4 of the checklist below), not local dev.
+- [x] **ThaiBulkSMS account created and verified end-to-end** — real API Key/Secret generated (SMS channel only, no Webhook URL needed — that field is for delivery-report callbacks, which this app doesn't use at all; sending an SMS just needs Basic Auth on the send request). Confirmed working with an actual production API call: a real OTP send request returned a real ThaiBulkSMS response (`remaining_credit` decremented, real `message_id`), and the SMS was received on a real phone. Keys were only placed in local `.env` for this one verification, then removed — like the DB connection string, they belong in Railway's env vars (step 4), not local dev, since their presence makes `sendOTP()` fire real sends (and burn real trial credit) on every local OTP request regardless of `NODE_ENV`.
+
 ### Pending / In Progress
-- [ ] **Socket.IO deployment upgrade** — see §9.3 for step-by-step instructions; 30-sec polling is the interim
-- [ ] **File storage (cloud)** — currently local filesystem (`backend/uploads/`); migrate to Supabase Storage before production — only `lib/storage.js` needs to change (`getUploader` + `getFilePath`)
-- [ ] **Supabase migration** — swap `DATABASE_URL` to Supabase PostgreSQL URI when ready to deploy; run `prisma migrate deploy`
-- [ ] **ThaiBulkSMS sender name** — change from `"Demo"` to approved sender name before go-live (set `THAIBULKSMS_SENDER` in `.env`)
+- [ ] **ThaiBulkSMS trial content restriction** — the account is still on trial: the actual SMS received had its body replaced with a generic ThaiBulkSMS test message ("Hello! This is a test message from...") instead of our app's real OTP text, even though the API accepted our exact request body correctly. This is most likely server-side message substitution ThaiBulkSMS applies to trial/unverified accounts (not documented in the API PDF, not confirmed with their support yet) — resolve by checking the account's trial/verification status on the ThaiBulkSMS dashboard or contacting their support before go-live. Sender name is a related, separate restriction: forced to `"Demo"` until an approved sender name is granted (also requires account verification) — change via `THAIBULKSMS_SENDER` in `.env` once approved.
+- [ ] **Admin panel Socket.IO upgrade** — the Socket.IO server itself is already live and working (initialized in `server.js`, consumed by the user-facing booking flow for real-time slot updates); what remains is switching the *admin* Dashboard/Bookings pages from 30-second polling to socket events — see §9.3
+- [ ] **Socket.IO CORS wildcard** — `lib/socket.js` currently sets `cors: { origin: '*' }`. Restrict this to `process.env.FRONTEND_URL` in production to match the REST API's CORS policy (currently the only origin-unrestricted entry point)
+- [ ] **Rotate JWT secrets** — `JWT_SECRET` / `JWT_REFRESH_SECRET` in the local `.env` are dev values; generate fresh high-entropy secrets for the production environment (Railway env vars), never reuse dev secrets
+- [ ] **Pin Node.js version** — `backend/package.json` has no `"engines"` field; add one (e.g. `"node": "22.x"`) so Railway's build matches the local dev version (Node 22)
+
+See §15.1 for the consolidated pre-flight checklist.
+
+### 15.1 Deployment Pre-Flight Checklist
+
+Concrete steps to go from "works locally" to live, in order:
+
+1. ~~**Cloud file storage**~~ — done. `lib/storage.js` auto-switches to Supabase Storage when `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are set (falls back to local disk otherwise). Bucket `payment-slips` created (private), keys verified against the real project — upload + signed-URL retrieval both confirmed working end-to-end.
+2. ~~**Provision Supabase PostgreSQL**~~ — done. All 6 migrations applied via `npx prisma migrate deploy` against the Supabase project (same project as Storage above). Verified via a direct table listing — all 9 tables present including `PaymentSlip`. **Gotcha hit during setup**: Supabase's "Direct connection" host (`db.<ref>.supabase.co`) is IPv6-only and was unreachable from this network — switched to the **Session pooler** connection string (`aws-0-<region>.pooler.supabase.com:5432`, NOT the Transaction pooler, which doesn't support the prepared statements Prisma's migration tooling needs). Also note: if your DB password contains special characters (e.g. `@`), they must be percent-encoded in the connection string (`@` → `%40`) or the URL parser misreads where the password ends. Local `.env` was only pointed at Supabase temporarily for this one command, then reverted back to local Postgres — day-to-day local dev is unaffected. Run `npm run seed` against the production DB only if you want the demo seed accounts there too; skip it once real users exist.
+3. ~~**Set up ThaiBulkSMS for production**~~ — account created, API Key/Secret generated, verified with a real end-to-end send (confirmed via API response + actual SMS received on a real phone). **Still open before full go-live**: account is on trial, so the SMS body is currently replaced by ThaiBulkSMS with a generic test message server-side, and the sender name is forced to `"Demo"` — both are trial/verification restrictions to resolve with ThaiBulkSMS (check dashboard status or contact their support), not code issues. Fine to defer if launching soft/invite-only with a manual heads-up to testers about the placeholder message text; blocks a real public launch.
+4. **Deploy backend to Railway** — set env vars: `DATABASE_URL` (Supabase), `JWT_SECRET`/`JWT_REFRESH_SECRET` (fresh, production-only), `NODE_ENV=production`, `FRONTEND_URL` (the Vercel URL, set *after* step 5), `THAIBULKSMS_API_KEY`/`SECRET`/`SENDER` (from step 3), `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` (from step 1), `APP_NAME`, `OTP_EXPIRE_MINUTES`, `JWT_EXPIRE`, `JWT_REFRESH_EXPIRE`.
+5. **Deploy frontend to Vercel** — set `REACT_APP_API_URL` to the Railway backend's public URL + `/api` (e.g. `https://your-app.up.railway.app/api`). **Do not** let this default to the LAN IP used for local phone testing (`frontend/.env` currently has `REACT_APP_API_URL=http://192.168.1.113:5000/api` for that purpose — it's gitignored so it won't leak automatically, but double-check the Vercel dashboard value is set explicitly).
+6. **Circle back to Railway** and set `FRONTEND_URL` to the real Vercel URL now that it exists, so backend CORS accepts it.
+7. **Restrict Socket.IO CORS** — update `lib/socket.js` from `origin: '*'` to `process.env.FRONTEND_URL`.
+8. **Smoke test on production URLs**: register/login via real SMS OTP (confirms step 3 worked), create a booking end-to-end including payment slip upload (confirm the slip survives a Railway redeploy — confirms step 1 worked), verify admin panel loads in Thai, verify Socket.IO slot updates work across two browser tabs.
 
 ---
 
@@ -569,9 +611,11 @@ All CTA buttons and section labels use `text-transform: uppercase` + `letter-spa
 | Static `/uploads` XSS | Uploads served on same origin as API. Mitigate by migrating to Supabase Storage (separate domain) before scale |
 | `psql` not in PATH | Use full path: `C:\Program Files\PostgreSQL\17\bin\psql.exe` |
 | Prisma version lock | Never run `npm i prisma@latest` — Prisma 7 breaks the setup (requires `prisma.config.ts` + driver adapters) |
-| QR Code | `PAYMENT_QR_IMAGE = null` in `PendingPaymentModal.js` — placeholder shown until real QR image asset is provided |
-| File upload storage | Payment slips stored on local disk — not suitable for cloud. `lib/storage.js` is the migration point |
+| File upload storage | Payment slips stored on local disk — not suitable for cloud/Railway (ephemeral filesystem). `lib/storage.js` is the migration point — see §15.1 |
 | ThaiBulkSMS sender name | Use `"Demo"` on trial account. Switch to an approved sender name before go-live (set `THAIBULKSMS_SENDER` in `.env`) |
+| Socket.IO CORS wildcard | `lib/socket.js` sets `cors: { origin: '*' }` — restrict to `FRONTEND_URL` before production (see §15.1 step 6) |
+| Frontend LAN override | `frontend/.env` has `REACT_APP_API_URL` pointed at a local LAN IP for phone testing during development. Gitignored, so it won't leak into a deploy automatically, but set the Vercel dashboard env var explicitly rather than relying on any local `.env` |
+| Web Share API requires HTTPS | The QR "Save to Photos" feature (`shareImage.js`) only activates on HTTPS or `localhost` — testing over plain-HTTP LAN will silently fall back to the old download-only behavior; it will work correctly once deployed |
 
 ---
 
