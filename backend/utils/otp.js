@@ -57,7 +57,7 @@ const sendOTP = async (phone, otp) => {
     msisdn,
     sender:  senderName,
     message,
-    force:   'standard', // 'standard' | 'corporate'
+    force:   'corporate', // 'standard' | 'corporate'
   });
 
   let response;
