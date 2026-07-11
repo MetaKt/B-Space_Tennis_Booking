@@ -539,7 +539,6 @@ router.post('/:id/payment-slip', protect, upload.single('paymentSlip'), async (r
     if (!req.file) return res.status(400).json({ success: false, message: 'Please upload a payment slip' });
 
     const updateData = {
-      paymentSlip: getFilePath('payments', req.file.filename),
       paymentStatus: 'submitted',
     };
 
@@ -549,6 +548,13 @@ router.post('/:id/payment-slip', protect, upload.single('paymentSlip'), async (r
       updateData.bookingStatus = 'confirmed_booking';
       updateData.expiresAt = null;
     }
+
+    await prisma.paymentSlip.create({
+      data: {
+        bookingId: booking.id,
+        filePath: getFilePath('payments', req.file.filename),
+      },
+    });
 
     const updatedBooking = await prisma.booking.update({
       where: { id: req.params.id },
@@ -596,7 +602,14 @@ router.get('/upcoming', protect, async (req, res) => {
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
 
-    res.json({ success: true, data: bookings });
+    // Provisional (unpaid draft) bookings float to the top regardless of date,
+    // since they need the user's attention before they expire. Everything else
+    // keeps the date/time order already applied by the query above.
+    const provisional = bookings.filter(b => b.bookingStatus === 'provisional');
+    const confirmed = bookings.filter(b => b.bookingStatus !== 'provisional');
+    const sorted = [...provisional, ...confirmed];
+
+    res.json({ success: true, data: sorted });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }

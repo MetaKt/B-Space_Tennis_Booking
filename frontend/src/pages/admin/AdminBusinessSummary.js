@@ -67,11 +67,10 @@ const AdminBusinessSummary = () => {
     });
     lines.push('');
 
-    lines.push('ลูกค้าอันดับต้น');
-    lines.push('ลูกค้า,จำนวนการจอง,ยอดใช้จ่ายรวม (฿)');
-    (data.topCustomers || []).forEach(c => {
-      lines.push(`"${c.name}",${c.bookings},${c.totalSpent}`);
-    });
+    lines.push('อัตราการใช้งาน');
+    lines.push(`อัตราการใช้งาน (%),${data.utilizationRate ?? 0}`);
+    lines.push(`ชั่วโมงที่จองแล้ว,${data.bookedHours || 0}`);
+    lines.push(`ชั่วโมงทั้งหมดที่เปิดให้บริการ,${data.maxUtilizationHours || 0}`);
     lines.push('');
 
     lines.push('รายได้รายวัน');
@@ -176,19 +175,22 @@ const AdminBusinessSummary = () => {
               </div>
             </div>
 
-            {/* Bookings by Status + Court Utilization */}
+            {/* Coach Hours/Revenue + Court Utilization */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
               <div style={{ ...cardStyle, borderTop: '3px solid #e5e7eb' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '16px' }}>
-                  การจองตามสถานะ
+                  ชั่วโมงและรายได้โค้ช
                 </h3>
-                {data.bookingsByStatus && Object.entries(data.bookingsByStatus).map(([status, count]) => (
-                  <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
-                    <span style={{ fontSize: '13px', color: '#374151' }}>{t(`common.${status}`)}</span>
-                    <span style={{ fontWeight: 700, fontSize: '15px', color: '#061823' }}>{count}</span>
+                {(data.coachRevenue || []).map((coach, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{coach.name}</div>
+                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{coach.hours || 0} ชม. · {coach.sessions} ครั้ง</div>
+                    </div>
+                    <span style={{ fontWeight: 700, color: '#073659' }}>฿{(coach.revenue || 0).toLocaleString()}</span>
                   </div>
                 ))}
-                {(!data.bookingsByStatus || Object.keys(data.bookingsByStatus).length === 0) && (
+                {(!data.coachRevenue || data.coachRevenue.length === 0) && (
                   <p style={{ color: '#9ca3af', fontSize: '13px' }}>ไม่มีข้อมูล</p>
                 )}
               </div>
@@ -212,44 +214,36 @@ const AdminBusinessSummary = () => {
               </div>
             </div>
 
-            {/* Coach Revenue + Top Customers */}
+            {/* Bookings by Status + Utilization Rate */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
               <div style={{ ...cardStyle, borderTop: '3px solid #e5e7eb' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '16px' }}>
-                  ชั่วโมงและรายได้โค้ช
+                  การจองตามสถานะ
                 </h3>
-                {(data.coachRevenue || []).map((coach, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{coach.name}</div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{coach.hours || 0} ชม. · {coach.sessions} ครั้ง</div>
-                    </div>
-                    <span style={{ fontWeight: 700, color: '#073659' }}>฿{(coach.revenue || 0).toLocaleString()}</span>
+                {data.bookingsByStatus && Object.entries(data.bookingsByStatus).map(([status, count]) => (
+                  <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
+                    <span style={{ fontSize: '13px', color: '#374151' }}>{t(`common.${status}`)}</span>
+                    <span style={{ fontWeight: 700, fontSize: '15px', color: '#061823' }}>{count}</span>
                   </div>
                 ))}
-                {(!data.coachRevenue || data.coachRevenue.length === 0) && (
+                {(!data.bookingsByStatus || Object.keys(data.bookingsByStatus).length === 0) && (
                   <p style={{ color: '#9ca3af', fontSize: '13px' }}>ไม่มีข้อมูล</p>
                 )}
               </div>
 
               <div style={{ ...cardStyle, borderTop: '3px solid #e5e7eb' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: 700, letterSpacing: '0.1px', textTransform: 'uppercase', color: '#061823', marginBottom: '16px' }}>
-                  ลูกค้าอันดับต้น
+                  อัตราการใช้งาน
                 </h3>
-                {(data.topCustomers || []).map((customer, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
-                        {i === 0 ? '01' : i === 1 ? '02' : i === 2 ? '03' : `${String(i + 1).padStart(2,'0')}`}. {customer.name}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{customer.bookings} การจอง</div>
-                    </div>
-                    <span style={{ fontWeight: 700, color: '#073659' }}>฿{(customer.totalSpent || 0).toLocaleString()}</span>
-                  </div>
-                ))}
-                {(!data.topCustomers || data.topCustomers.length === 0) && (
-                  <p style={{ color: '#9ca3af', fontSize: '13px' }}>ไม่มีข้อมูล</p>
-                )}
+                <div style={{ fontSize: '36px', fontWeight: 800, color: '#061823', fontFamily: 'var(--font-display)', marginBottom: '8px' }}>
+                  {data.utilizationRate ?? 0}%
+                </div>
+                <div style={{ width: '100%', height: '8px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden', marginBottom: '10px' }}>
+                  <div style={{ width: `${Math.min(data.utilizationRate || 0, 100)}%`, height: '100%', background: '#ffde17' }} />
+                </div>
+                <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+                  {data.bookedHours || 0} ชม. จองแล้ว จากทั้งหมด {data.maxUtilizationHours || 0} ชม.
+                </div>
               </div>
             </div>
 

@@ -77,7 +77,7 @@ const RegisterPage = () => {
             </div>
           </div>
           <div className="form-group">
-            <label>{t('auth.dob')}</label>
+            <label>{t('auth.dateOfBirth')}</label>
             <input type="date" name="dateOfBirth" className="form-input" value={form.dateOfBirth} onChange={handleChange} />
           </div>
           <div className="form-group">

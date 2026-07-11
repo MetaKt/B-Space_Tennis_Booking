@@ -266,8 +266,9 @@ model Booking {
   // Add-ons: JSON array e.g. [{ name: "Ball Rental", price: 50, quantity: 1 }]
   addOns              Json?
 
-  // Payment evidence
-  paymentSlip         String?                                         // path to uploaded slip image
+  // Payment evidence — see PaymentSlip model (one booking can have multiple
+  // slips, e.g. original payment + extra slip after a coach-price change)
+  paymentSlips        PaymentSlip[]
 
   // Cancellation
   cancelledAt         DateTime?
@@ -295,6 +296,25 @@ model Booking {
   @@index([paymentStatus])
   @@index([bookingStatus])
   @@index([expiresAt])
+}
+
+// =============================================================================
+// PAYMENT SLIP
+// One booking can accumulate multiple slips over time (e.g. the original
+// payment, then another after an admin-driven coach price change resets
+// paymentStatus back to pending). Each upload is kept as its own row instead
+// of overwriting a single column, so admins can review the full history.
+// =============================================================================
+
+model PaymentSlip {
+  id         String   @id @default(cuid())
+  filePath   String
+  uploadedAt DateTime @default(now())
+
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
 }
 
 // =============================================================================

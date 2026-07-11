@@ -321,12 +321,12 @@ const AdminBookingManagement = () => {
                         <span className={`status-badge status-${b.paymentStatus}`}>
                           {t(`common.${b.paymentStatus}`)}
                         </span>
-                        {b.paymentSlip && (
+                        {b.paymentSlips?.length > 0 && (
                           <button
                             onClick={() => setSlipPreview(b)}
                             style={{ fontSize: '10px', display: 'block', marginTop: '3px', background: 'none', border: 'none', cursor: 'pointer', color: '#073659', padding: 0, textDecoration: 'underline' }}
                           >
-                            ดูสลิป
+                            ดูสลิป{b.paymentSlips.length > 1 ? ` (${b.paymentSlips.length})` : ''}
                           </button>
                         )}
                       </td>
@@ -407,29 +407,36 @@ const AdminBookingManagement = () => {
             <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '12px' }}>
               {slipPreview.user?.name} ({slipPreview.user?.phone}) — คอร์ท {slipPreview.court?.courtNumber} — {format(new Date(slipPreview.date.slice(0, 10) + 'T12:00:00'), 'dd MMM yyyy')} {slipPreview.startTime}–{slipPreview.endTime}
             </div>
-            {slipPreview.paymentSlip ? (
-              <div style={{ position: 'relative' }}>
-                <img
-                  src={`${BACKEND_URL}${slipPreview.paymentSlip}`}
-                  alt="Payment Slip"
-                  style={{ width: '100%', borderRadius: '4px', objectFit: 'contain', maxHeight: '400px', display: 'block' }}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    const fb = e.target.nextElementSibling;
-                    if (fb) fb.style.display = 'block';
-                  }}
-                />
-                <div style={{ display: 'none', padding: '24px', textAlign: 'center', background: '#f9fafb', borderRadius: '4px', border: '1px dashed #e5e7eb' }}>
-                  <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px' }}>ไม่สามารถแสดงรูปสลิปในหน้านี้ได้</p>
-                  <a
-                    href={`${BACKEND_URL}${slipPreview.paymentSlip}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: '13px', color: '#073659', fontWeight: 700, textDecoration: 'underline' }}
-                  >
-                    เปิดสลิปในแท็บใหม่
-                  </a>
-                </div>
+            {slipPreview.paymentSlips?.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '60vh', overflowY: 'auto' }}>
+                {slipPreview.paymentSlips.map((slip, i) => (
+                  <div key={slip.id} style={{ position: 'relative' }}>
+                    <p style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '6px' }}>
+                      สลิปที่ {slipPreview.paymentSlips.length - i} — {format(new Date(slip.uploadedAt), 'dd MMM yyyy HH:mm')}
+                    </p>
+                    <img
+                      src={`${BACKEND_URL}${slip.filePath}`}
+                      alt={`Payment Slip ${i + 1}`}
+                      style={{ width: '100%', borderRadius: '4px', objectFit: 'contain', maxHeight: '400px', display: 'block' }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const fb = e.target.nextElementSibling;
+                        if (fb) fb.style.display = 'block';
+                      }}
+                    />
+                    <div style={{ display: 'none', padding: '24px', textAlign: 'center', background: '#f9fafb', borderRadius: '4px', border: '1px dashed #e5e7eb' }}>
+                      <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px' }}>ไม่สามารถแสดงรูปสลิปในหน้านี้ได้</p>
+                      <a
+                        href={`${BACKEND_URL}${slip.filePath}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: '13px', color: '#073659', fontWeight: 700, textDecoration: 'underline' }}
+                      >
+                        เปิดสลิปในแท็บใหม่
+                      </a>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <p style={{ fontSize: '13px', color: '#9ca3af', padding: '20px', textAlign: 'center' }}>ยังไม่มีการอัปโหลดสลิป</p>

@@ -202,6 +202,7 @@ router.get('/bookings', protect, adminAccess, async (req, res) => {
           user: { select: { name: true, phone: true, email: true } },
           court: { select: { courtNumber: true, name: true } },
           coach: { select: { name: true, nickname: true } },
+          paymentSlips: { orderBy: { uploadedAt: 'desc' } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -501,6 +502,20 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
       };
     });
 
+    // 4b. Utilization rate — booked hours vs. max possible hours across all
+    // active courts' open hours for every day in the period
+    const activeCourts = await prisma.court.findMany({ where: { isActive: true } });
+    const daysInPeriod = Math.max(1, Math.round((now - startDate) / (1000 * 60 * 60 * 24)));
+    const maxUtilizationHours = activeCourts.reduce((sum, c) => {
+      const openHour = parseInt(c.openTime.split(':')[0]);
+      const closeHour = parseInt(c.closeTime.split(':')[0]);
+      return sum + Math.max(0, closeHour - openHour) * daysInPeriod;
+    }, 0);
+    const bookedHours = courtUtilization.reduce((sum, c) => sum + (c.totalHours || 0), 0);
+    const utilizationRate = maxUtilizationHours > 0
+      ? Math.round((bookedHours / maxUtilizationHours) * 1000) / 10
+      : 0;
+
     // 5. New users
     const newUsers = await prisma.user.count({
       where: { createdAt: { gte: startDate }, role: 'user' },
@@ -563,6 +578,9 @@ router.get('/business-summary', protect, masterOnly, async (req, res) => {
         totalBookings: revenueData._count.id || 0,
         bookingsByStatus,
         courtUtilization,
+        utilizationRate,
+        bookedHours,
+        maxUtilizationHours,
         coachRevenue,
         newUsers,
         topCustomers,
