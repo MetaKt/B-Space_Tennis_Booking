@@ -159,9 +159,11 @@ const OTPPage = () => {
           )}
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: 'var(--gray-400)' }}>
-          DEV MODE: Check server console for OTP
-        </p>
+        {process.env.NODE_ENV === 'development' && (
+          <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '12px', color: 'var(--gray-400)' }}>
+            DEV MODE: Check server console for OTP
+          </p>
+        )}
       </div>
     </div>
   );
