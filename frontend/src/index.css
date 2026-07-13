@@ -202,10 +202,12 @@ body {
   cursor: pointer;
 }
 
-/* iOS Safari's native date-picker widget ignores width/max-width and renders
-   past the input's box unless -webkit-min-logical-width is set explicitly. */
+/* iOS Safari's native date-picker chrome carries its own intrinsic width and
+   overflows the input's box; -webkit-appearance: none strips that chrome so
+   width/box-sizing apply normally (tapping still opens the native picker). */
 input[type="date"] {
-  -webkit-min-logical-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .btn {
