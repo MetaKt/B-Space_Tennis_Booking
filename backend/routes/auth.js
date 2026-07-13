@@ -152,7 +152,7 @@ router.post('/login', authLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
@@ -236,7 +236,7 @@ router.post('/verify-otp', authLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('OTP verify error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
@@ -273,7 +273,8 @@ router.post('/resend-otp', authLimiter, async (req, res) => {
 
     res.json({ success: true, message: 'OTP resent successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('Resend OTP error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 });
 
