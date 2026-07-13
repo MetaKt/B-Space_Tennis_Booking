@@ -202,6 +202,12 @@ body {
   cursor: pointer;
 }
 
+/* iOS Safari's native date-picker widget ignores width/max-width and renders
+   past the input's box unless -webkit-min-logical-width is set explicitly. */
+input[type="date"] {
+  -webkit-min-logical-width: 100%;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

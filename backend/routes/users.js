@@ -10,12 +10,11 @@ const router = express.Router();
 // @access  Private
 router.put('/profile', protect, async (req, res) => {
   try {
-    const { name, email, age, gender, dateOfBirth, occupation, preferredLanguage } = req.body;
+    const { name, email, gender, dateOfBirth, occupation, preferredLanguage } = req.body;
 
     const data = {};
     if (name)                    data.name = name;
     if (email !== undefined)     data.email = email;
-    if (age !== undefined)       data.age = (age === '' || age === null || age === undefined) ? null : parseInt(age, 10);
     if (gender !== undefined)    data.gender = gender || null;
     if (dateOfBirth !== undefined) data.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
     if (occupation !== undefined) data.occupation = occupation;

@@ -47,7 +47,7 @@ const storeRefreshToken = async (userId, token) => {
 // @access  Public
 router.post('/register', authLimiter, async (req, res) => {
   try {
-    const { name, phone, email, age, gender, dateOfBirth, occupation } = req.body;
+    const { name, phone, email, gender, dateOfBirth, occupation } = req.body;
 
     if (!name || !phone) {
       return res.status(400).json({ success: false, message: 'Name and phone are required' });
@@ -60,6 +60,18 @@ router.post('/register', authLimiter, async (req, res) => {
       });
     }
 
+    if (!email || !gender || !dateOfBirth) {
+      return res.status(400).json({ success: false, message: 'Email, gender, and date of birth are required' });
+    }
+
+    if (!['male', 'female', 'other'].includes(gender)) {
+      return res.status(400).json({ success: false, message: 'Invalid gender' });
+    }
+
+    if (Number.isNaN(new Date(dateOfBirth).getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid date of birth' });
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { phone } });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Phone number already registered' });
@@ -69,10 +81,9 @@ router.post('/register', authLimiter, async (req, res) => {
       data: {
         name,
         phone,
-        email: email || '',
-        age: age || null,
-        gender: gender || null,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        email,
+        gender,
+        dateOfBirth: new Date(dateOfBirth),
         occupation: occupation || '',
       },
     });

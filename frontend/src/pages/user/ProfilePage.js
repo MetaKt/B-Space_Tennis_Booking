@@ -13,7 +13,6 @@ const ProfilePage = () => {
   const [form, setForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    age: user?.age || '',
     gender: user?.gender || '',
     dateOfBirth: user?.dateOfBirth ? user.dateOfBirth.split('T')[0] : '',
     occupation: user?.occupation || ''
@@ -97,21 +96,15 @@ const ProfilePage = () => {
           <input style={inputStyle} name="email" type="email" value={form.email} onChange={handleChange} />
         </div>
 
-        {/* Age & Gender row */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>{t('auth.age')}</label>
-            <input style={inputStyle} name="age" type="number" value={form.age} onChange={handleChange} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>{t('auth.gender')}</label>
-            <select style={inputStyle} name="gender" value={form.gender} onChange={handleChange}>
-              <option value="">-</option>
-              <option value="male">{t('auth.male')}</option>
-              <option value="female">{t('auth.female')}</option>
-              <option value="other">{t('auth.other')}</option>
-            </select>
-          </div>
+        {/* Gender */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={labelStyle}>{t('auth.gender')}</label>
+          <select style={inputStyle} name="gender" value={form.gender} onChange={handleChange}>
+            <option value="">-</option>
+            <option value="male">{t('auth.male')}</option>
+            <option value="female">{t('auth.female')}</option>
+            <option value="other">{t('auth.other')}</option>
+          </select>
         </div>
 
         {/* Date of Birth */}

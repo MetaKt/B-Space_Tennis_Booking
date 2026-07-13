@@ -9,7 +9,7 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    name: '', phone: '', email: '', age: '', gender: '', dateOfBirth: '', occupation: ''
+    name: '', phone: '', email: '', gender: '', dateOfBirth: '', occupation: ''
   });
 
   const handleChange = (e) => {
@@ -26,14 +26,13 @@ const RegisterPage = () => {
       return toast.error('Phone number must be 10 digits starting with 0 (e.g., 0812345678)');
     }
 
+    if (!form.email.trim() || !form.gender || !form.dateOfBirth) {
+      return toast.error('Email, gender, and date of birth are required');
+    }
+
     setLoading(true);
     try {
-      const payload = { ...form };
-      if (!payload.age) delete payload.age;
-      if (!payload.email) delete payload.email;
-      if (!payload.dateOfBirth) delete payload.dateOfBirth;
-
-      await authAPI.register(payload);
+      await authAPI.register(form);
       toast.success(t('auth.otpSent'));
       navigate('/otp', { state: { phone: form.phone, name: form.name, mode: 'register' } });
     } catch (error) {
@@ -58,27 +57,21 @@ const RegisterPage = () => {
             <input type="tel" name="phone" className="form-input" placeholder="0812345678" value={form.phone} onChange={handleChange} maxLength={10} pattern="0[0-9]{9}" required />
           </div>
           <div className="form-group">
-            <label>{t('auth.email')}</label>
-            <input type="email" name="email" className="form-input" placeholder="email@example.com" value={form.email} onChange={handleChange} />
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>{t('auth.age')}</label>
-              <input type="number" name="age" className="form-input" placeholder="25" value={form.age} onChange={handleChange} min={1} max={120} />
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>{t('auth.gender')}</label>
-              <select name="gender" className="form-select" value={form.gender} onChange={handleChange}>
-                <option value="">--</option>
-                <option value="male">{t('auth.male')}</option>
-                <option value="female">{t('auth.female')}</option>
-                <option value="other">{t('auth.other')}</option>
-              </select>
-            </div>
+            <label>{t('auth.email')} *</label>
+            <input type="email" name="email" className="form-input" placeholder="email@example.com" value={form.email} onChange={handleChange} required />
           </div>
           <div className="form-group">
-            <label>{t('auth.dateOfBirth')}</label>
-            <input type="date" name="dateOfBirth" className="form-input" value={form.dateOfBirth} onChange={handleChange} />
+            <label>{t('auth.gender')} *</label>
+            <select name="gender" className="form-select" value={form.gender} onChange={handleChange} required>
+              <option value="">--</option>
+              <option value="male">{t('auth.male')}</option>
+              <option value="female">{t('auth.female')}</option>
+              <option value="other">{t('auth.other')}</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>{t('auth.dateOfBirth')} *</label>
+            <input type="date" name="dateOfBirth" className="form-input" value={form.dateOfBirth} onChange={handleChange} required />
           </div>
           <div className="form-group">
             <label>{t('auth.occupation')}</label>
