@@ -204,10 +204,15 @@ body {
 
 /* iOS Safari's native date-picker chrome carries its own intrinsic width and
    overflows the input's box; -webkit-appearance: none strips that chrome so
-   width/box-sizing apply normally (tapping still opens the native picker). */
+   width/box-sizing apply normally (tapping still opens the native picker).
+   That same reset also drops iOS's built-in padding, so it's reapplied here
+   to match the height of the other .form-input fields. */
 input[type="date"] {
   -webkit-appearance: none;
   appearance: none;
+  padding: 12px 16px;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .btn {
