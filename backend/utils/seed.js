@@ -21,7 +21,7 @@ const seedDB = async () => {
     // Create Master Admin
     const masterAdmin = await User.create({
       name: 'Master Admin',
-      phone: '0800000001',
+      phone: '0864123340',
       email: 'master@tenniscourt.com',
       role: 'master_admin',
       preferredLanguage: 'en'

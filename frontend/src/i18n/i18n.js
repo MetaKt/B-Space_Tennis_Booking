@@ -124,7 +124,8 @@ const resources = {
         cancelReason: 'Reason for cancellation',
         cancelWindowPassed: 'Cannot cancel within {{hours}}h of start',
         confirmCancel: 'Confirm Cancel',
-        cancelBooking: 'Cancel Booking'
+        cancelBooking: 'Cancel Booking',
+        noBookings: 'No bookings'
       },
       admin: {
         dashboard: 'Dashboard',
@@ -323,7 +324,8 @@ const resources = {
         cancelReason: 'เหตุผลในการยกเลิก',
         cancelWindowPassed: 'ยกเลิกได้ก่อนเริ่มอย่างน้อย {{hours}} ชม.',
         confirmCancel: 'ยืนยันการยกเลิก',
-        cancelBooking: 'ยกเลิกการจอง'
+        cancelBooking: 'ยกเลิกการจอง',
+        noBookings: 'ไม่มีการจอง'
       },
       admin: {
         dashboard: 'แดชบอร์ด',
