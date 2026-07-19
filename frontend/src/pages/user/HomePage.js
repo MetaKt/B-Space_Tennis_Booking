@@ -101,10 +101,10 @@ const HomePage = () => {
   const handleReleaseProvisional = async (booking) => {
     try {
       await bookingAPI.cancel(booking.id, { reason: 'released_from_home' });
-      toast.success('Reservation released');
+      toast.success(t('provisional.released'));
       fetchUpcoming();
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to release reservation');
+      toast.error(e.response?.data?.message || t('provisional.releaseFailed'));
     }
   };
 
@@ -197,7 +197,7 @@ const HomePage = () => {
                   <div className="booking-card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: urgent ? '#fee2e2' : '#fef3c7', color: urgent ? '#b91c1c' : '#92400e', letterSpacing: '0px' }}>
-                        RESERVED
+                        {t('provisional.reserved')}
                       </span>
                       <span className="booking-card-court">{t('booking.courtNumber')} {booking.court?.courtNumber} - {booking.court?.name}</span>
                     </div>
@@ -210,20 +210,20 @@ const HomePage = () => {
                     <span className="booking-card-detail">{booking.startTime} - {booking.endTime}</span>
                   </div>
                   <div style={{ fontSize: '12px', color: urgent ? '#b91c1c' : '#92400e', marginTop: '6px' }}>
-                    Reservation expires in {timeLeft} — complete payment to confirm.
+                    {t('provisional.expiresIn', { time: timeLeft })}
                   </div>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
                     <button
                       onClick={() => handleReleaseProvisional(booking)}
                       style={{ flex: 1, padding: '8px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--gray-300)', background: '#fff', cursor: 'pointer', fontWeight: 500 }}
                     >
-                      Release
+                      {t('provisional.release')}
                     </button>
                     <button
                       onClick={() => handleResume(booking)}
                       style={{ flex: 2, padding: '8px', fontSize: '13px', borderRadius: '6px', border: 'none', color: '#fff', background: urgent ? '#dc2626' : '#d97706', cursor: 'pointer', fontWeight: 600 }}
                     >
-                      Continue →
+                      {t('provisional.continue')}
                     </button>
                   </div>
                 </div>
@@ -242,7 +242,7 @@ const HomePage = () => {
                 <div className="booking-card" style={{ marginBottom: hasCoach ? '2px' : '0', borderRadius: hasCoach ? '12px 12px 0 0' : '12px' }}>
                   <div className="booking-card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--green-100)', color: 'var(--green-800)', letterSpacing: '0px' }}>COURT</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--green-100)', color: 'var(--green-800)', letterSpacing: '0px' }}>{t('booking.court').toUpperCase()}</span>
                       <span className="booking-card-court">{t('booking.courtNumber')} {booking.court?.courtNumber} - {booking.court?.name}</span>
                     </div>
                     <span className={`status-badge status-${booking.status}`}>{t(`common.${booking.status}`)}</span>
@@ -270,9 +270,9 @@ const HomePage = () => {
                   <div className="booking-card" style={{ borderRadius: '0 0 12px 12px', borderTop: '1px dashed var(--gray-200)', background: 'var(--gray-50)' }}>
                     <div className="booking-card-header">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--blue-100)', color: 'var(--blue-800)', letterSpacing: '0px' }}>COACH</span>
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--blue-100)', color: 'var(--blue-800)', letterSpacing: '0px' }}>{t('booking.coach').toUpperCase()}</span>
                         <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gray-700)' }}>
-                          {coachName || (booking.coachOption === 'outside' ? 'Outside Coach' : 'Coach')}
+                          {coachName || (booking.coachOption === 'outside' ? t('booking.outsideCoachLabel') : t('booking.coach'))}
                         </span>
                       </div>
                       <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px', background: `${coachStatusColor}20`, color: coachStatusColor }}>
@@ -303,23 +303,27 @@ const HomePage = () => {
       {logoutPrompt && (
         <div className="modal-overlay" onClick={() => setLogoutPrompt(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h3 style={{ fontSize: '18px' }}>You have a pending reservation</h3></div>
+            <div className="modal-header"><h3 style={{ fontSize: '18px' }}>{t('provisional.pendingTitle')}</h3></div>
             <div style={{ padding: '12px 0' }}>
               <p style={{ fontSize: '14px', color: 'var(--gray-700)', marginBottom: '8px' }}>
-                Your reservation for <strong>Court {logoutPrompt.provisional.court?.courtNumber}</strong> at <strong>{logoutPrompt.provisional.startTime}–{logoutPrompt.provisional.endTime}</strong> expires in <strong style={{ color: 'var(--red-600)' }}>{formatTimeLeft(logoutPrompt.provisional.expiresAt)}</strong>.
+                {t('provisional.pendingBody', {
+                  court: logoutPrompt.provisional.court?.courtNumber,
+                  start: logoutPrompt.provisional.startTime,
+                  end: logoutPrompt.provisional.endTime,
+                })} <strong style={{ color: 'var(--red-600)' }}>{formatTimeLeft(logoutPrompt.provisional.expiresAt)}</strong>
               </p>
               <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-                If you log out now, the reservation will be cancelled and the slot released to other users.
+                {t('provisional.logoutWarning')}
               </p>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-outline" onClick={() => setLogoutPrompt(null)} style={{ flex: 1 }}>Stay logged in</button>
+              <button className="btn btn-outline" onClick={() => setLogoutPrompt(null)} style={{ flex: 1 }}>{t('provisional.stayLoggedIn')}</button>
               <button
                 className="btn"
                 onClick={handleConfirmLogoutWithCancel}
                 style={{ flex: 1, background: 'var(--red-500, #ef4444)', color: '#fff' }}
               >
-                Cancel & log out
+                {t('provisional.cancelAndLogout')}
               </button>
             </div>
           </div>

@@ -113,7 +113,7 @@ const BookingFlowPage = () => {
           return;
         }
         if (b.expiresAt && new Date(b.expiresAt) <= new Date()) {
-          toast.error('This reservation has expired.');
+          toast.error(t('provisional.expired'));
           navigate('/');
           return;
         }
@@ -305,7 +305,7 @@ const BookingFlowPage = () => {
     } catch (err) {
       const code = err.response?.data?.code;
       if (code === 'HAS_PROVISIONAL') {
-        toast.error('You already have a pending reservation. Continue or release it from the home screen.');
+        toast.error(t('provisional.hasProvisional'));
         navigate('/');
       } else if (code === 'SLOT_TAKEN' || err.response?.status === 409) {
         toast.error(err.response?.data?.message || 'This time slot was just taken.');
@@ -758,17 +758,21 @@ const BookingFlowPage = () => {
       {pendingSwap && (
         <div className="modal-overlay" onClick={() => !loading && setPendingSwap(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h3 style={{ fontSize: '18px' }}>Release current reservation?</h3></div>
+            <div className="modal-header"><h3 style={{ fontSize: '18px' }}>{t('provisional.swapTitle')}</h3></div>
             <div style={{ padding: '12px 0' }}>
               <p style={{ fontSize: '14px', color: 'var(--gray-700)', marginBottom: '8px' }}>
-                You have a reservation for <strong>{provisionalBooking?.startTime}–{provisionalBooking?.endTime}</strong> on the {format(new Date((typeof provisionalBooking?.date === 'string' ? provisionalBooking.date.slice(0,10) : provisionalBooking?.date) + 'T12:00:00'), 'dd MMM')}.
+                {t('provisional.swapBody', {
+                  start: provisionalBooking?.startTime,
+                  end: provisionalBooking?.endTime,
+                  date: format(new Date((typeof provisionalBooking?.date === 'string' ? provisionalBooking.date.slice(0,10) : provisionalBooking?.date) + 'T12:00:00'), 'dd MMM'),
+                })}
               </p>
               <p style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
-                Continuing will release it and reserve your new selection. A fresh 15-minute timer will start.
+                {t('provisional.swapNote')}
               </p>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-outline" onClick={() => setPendingSwap(null)} disabled={loading} style={{ flex: 1 }}>Keep current</button>
+              <button className="btn btn-outline" onClick={() => setPendingSwap(null)} disabled={loading} style={{ flex: 1 }}>{t('provisional.keepCurrent')}</button>
               <button
                 className="btn btn-gold"
                 onClick={async () => {
@@ -779,7 +783,7 @@ const BookingFlowPage = () => {
                 disabled={loading}
                 style={{ flex: 1 }}
               >
-                {loading ? 'Swapping...' : 'Swap reservation'}
+                {loading ? t('provisional.swapping') : t('provisional.swapAction')}
               </button>
             </div>
           </div>
