@@ -596,6 +596,7 @@ input[type="date"] {
 .status-pending   { background: var(--amber-100);  color: var(--amber-500); }
 .status-confirmed { background: var(--blue-700);  color: #fff; }
 .status-submitted { background: var(--green-100);  color: var(--blue-700); }
+.status-comp      { background: #ffde17;  color: #073659; }
 
 /* ===== DROPDOWN MENU ===== */
 .dropdown-menu {

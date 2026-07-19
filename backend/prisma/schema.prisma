@@ -47,16 +47,6 @@ enum Surface {
   synthetic
 }
 
-enum Specialization {
-  beginner
-  intermediate
-  advanced
-  kids
-  competition
-  fitness
-  strategy
-}
-
 // Booking lifecycle: provisional → confirmed_booking
 // (must use underscore because 'confirmed' is taken by PaymentStatus)
 enum BookingProvisionStatus {
@@ -77,6 +67,7 @@ enum PaymentStatus {
   confirmed       // admin verified payment
   refunded        // cancelled with credit refund
   pending_refund  // cancelled while slip was submitted; awaiting admin to process cash refund
+  comp            // complimentary — master-admin VIP booking, no payment involved
 }
 
 enum CoachOption {
@@ -118,6 +109,7 @@ model User {
   credit            Float          @default(0)
   preferredLanguage Language       @default(en)
   isActive          Boolean        @default(true)
+  termsAcceptedAt   DateTime?                     // when the user accepted the T&C at registration
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
@@ -165,6 +157,7 @@ model Court {
   updatedAt    DateTime  @updatedAt
 
   bookings     Booking[]
+  pricing      CourtPricing[]
 }
 
 // =============================================================================
@@ -180,7 +173,7 @@ model Coach {
   phone             String
   email             String              @default("")
   bio               String              @default("") @db.VarChar(1000)
-  specialization    Specialization[]
+  specialization    String[]            // free-text tags — the coach's own short self-descriptions
   certifications    String[]
   yearsOfExperience Int                 @default(0)
   pricePerHour      Float
@@ -208,15 +201,35 @@ model Coach {
 // =============================================================================
 
 model CoachAvailability {
-  id        String @id @default(cuid())
-  dayOfWeek Int    // 0 = Sunday … 6 = Saturday
-  startTime String // "HH:mm"
-  endTime   String // "HH:mm"
+  id           String @id @default(cuid())
+  dayOfWeek    Int    // 0 = Sunday … 6 = Saturday
+  startTime    String // "HH:mm"
+  endTime      String // "HH:mm"
+  pricePerHour Float? // per-window price; null → coach's base pricePerHour applies
 
-  coachId   String
-  coach     Coach  @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  coachId      String
+  coach        Coach  @relation(fields: [coachId], references: [id], onDelete: Cascade)
 
   @@index([coachId])
+}
+
+// =============================================================================
+// COURT PRICING
+// Time-band pricing rows per court (peak pricing). Hours not covered by any
+// row are charged at the court's base pricePerHour.
+// =============================================================================
+
+model CourtPricing {
+  id           String @id @default(cuid())
+  dayOfWeek    Int    // 0 = Sunday … 6 = Saturday
+  startTime    String // "HH:mm"
+  endTime      String // "HH:mm"
+  pricePerHour Float
+
+  courtId      String
+  court        Court  @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@index([courtId])
 }
 
 // =============================================================================
@@ -253,6 +266,9 @@ model Booking {
   coachOption         CoachOption            @default(none)
   outsideCoachName    String                 @default("")             // when coachOption = outside
   coachStatus         CoachStatus            @default(active)         // tracks reassignment history
+
+  // VIP booking (master admin books on behalf of a guest; paymentStatus = comp)
+  guestName           String                 @default("")             // non-empty ⇒ VIP guest booking
 
   // Pricing breakdown
   courtPrice          Float

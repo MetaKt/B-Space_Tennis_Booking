@@ -26,7 +26,8 @@ const { protect, adminAccess } = require('../middleware/auth');
 const { getIO } = require('../lib/socket');
 const { getUploader, saveFile, FILTERS } = require('../lib/storage');
 
-const { autoCompletePassedBookings } = require('../lib/bookingHelpers');
+const { autoCompletePassedBookings, generateBookingId } = require('../lib/bookingHelpers');
+const { rateForHour, priceForRange, dayOfWeekOf } = require('../lib/pricing');
 
 const router = express.Router();
 
@@ -35,20 +36,6 @@ const upload = getUploader('payments', {
   prefix: 'payment',
   fileFilter: FILTERS.imagesPdf,
 });
-
-// Helper: generate human-readable booking ID (BK-XXXXXX)
-const BOOKING_ID_CHARSET = 'ABCDEFGHJKLMNPQRTUVWXYZ2346789';
-async function generateBookingId() {
-  let id, exists = true;
-  while (exists) {
-    const suffix = Array.from({ length: 6 }, () =>
-      BOOKING_ID_CHARSET[Math.floor(Math.random() * BOOKING_ID_CHARSET.length)]
-    ).join('');
-    id = `BK-${suffix}`;
-    exists = !!(await prisma.booking.findUnique({ where: { bookingId: id } }));
-  }
-  return id;
-}
 
 // Helper: resolve add-on prices from the Settings table.
 // Input from client: [{ name, quantity }]  — prices are IGNORED if sent.
@@ -115,6 +102,12 @@ router.get('/available-slots', protect, async (req, res) => {
       select: { startTime: true, endTime: true },
     });
 
+    // Time-band pricing: per-slot price from CourtPricing rows for this weekday
+    const slotDayOfWeek = dayOfWeekOf(date);
+    const pricingRules = await prisma.courtPricing.findMany({
+      where: { courtId, dayOfWeek: slotDayOfWeek },
+    });
+
     const openHour = parseInt(court.openTime.split(':')[0]);
     const closeHour = parseInt(court.closeTime.split(':')[0]);
     const slots = [];
@@ -127,7 +120,12 @@ router.get('/available-slots', protect, async (req, res) => {
         const bEnd = parseInt(b.endTime.split(':')[0]);
         return hour >= bStart && hour < bEnd;
       });
-      slots.push({ startTime: timeStr, endTime: endStr, available: !isBooked, price: court.pricePerHour });
+      slots.push({
+        startTime: timeStr,
+        endTime: endStr,
+        available: !isBooked,
+        price: rateForHour(pricingRules, court.pricePerHour, slotDayOfWeek, hour),
+      });
     }
 
     res.json({ success: true, data: { court, slots } });
@@ -289,7 +287,12 @@ router.post('/', protect, async (req, res) => {
 
     // Court price snapshot — locked at provisional creation. Admin changes during
     // the 15-min window will not retroactively affect this booking.
-    const courtPrice = court.pricePerHour * hours;
+    // Priced hour-by-hour so peak time-band rates (CourtPricing) apply per hour.
+    const bookingDayOfWeek = dayOfWeekOf(date);
+    const courtPricingRules = await prisma.courtPricing.findMany({
+      where: { courtId, dayOfWeek: bookingDayOfWeek },
+    });
+    const courtPrice = priceForRange(courtPricingRules, court.pricePerHour, bookingDayOfWeek, startTime, endTime);
     const bookingId = await generateBookingId();
 
     // ----- Atomic swap + conflict check + create inside SERIALIZABLE transaction -----
@@ -434,13 +437,19 @@ router.post('/:id/confirm-payment', protect, async (req, res) => {
     let coachPrice = 0;
 
     if (coachOption === 'in_house' && coachId) {
-      const coach = await prisma.coach.findUnique({ where: { id: coachId } });
+      const coach = await prisma.coach.findUnique({
+        where: { id: coachId },
+        include: { availability: true },
+      });
       if (!coach || !coach.isActive) {
         return res.status(400).json({ success: false, message: 'Selected coach is unavailable' });
       }
       resolvedCoachOption = 'in_house';
       resolvedCoachId = coach.id;
-      coachPrice = coach.pricePerHour * booking.duration;
+      // Hour-by-hour: availability windows with their own pricePerHour override
+      // the coach's base rate for the hours they cover.
+      const coachDow = dayOfWeekOf(booking.date.toISOString().slice(0, 10));
+      coachPrice = priceForRange(coach.availability, coach.pricePerHour, coachDow, booking.startTime, booking.endTime);
     } else if (coachOption === 'outside') {
       const feeSetting = await prisma.setting.findUnique({ where: { key: 'outside_coach_fee' } });
       resolvedCoachOption = 'outside';
@@ -729,7 +738,10 @@ router.put('/:id/cancel', protect, async (req, res) => {
     let newPaymentStatus = 'refunded';
     let refundMessage = 'Booking cancelled.';
 
-    if (booking.paymentStatus === 'pending') {
+    if (booking.paymentStatus === 'comp') {
+      // VIP comp booking — no money involved, nothing to refund
+      newPaymentStatus = 'comp';
+    } else if (booking.paymentStatus === 'pending') {
       if (booking.additionalAmountDue > 0) {
         creditRefund = booking.totalPrice + booking.creditUsed;
         refundMessage = `Booking cancelled. ฿${creditRefund} refunded as credits (coach upgrade difference waived).`;

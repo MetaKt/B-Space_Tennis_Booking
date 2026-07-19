@@ -348,11 +348,29 @@ const BookingFlowPage = () => {
   // ===========================================================================
   // STEP 1 — pricing (display only; server is authoritative at confirm-payment)
   // ===========================================================================
+  // Coach fee hour-by-hour: an availability window with its own pricePerHour
+  // overrides the coach's base rate for the hours it covers (mirrors server logic).
+  const calcCoachPrice = (coach) => {
+    const hours = selectedSlots.length || provisionalBooking?.duration || 0;
+    if (!selectedDate || selectedSlots.length === 0) return coach.pricePerHour * hours;
+    const dow = selectedDate.getDay();
+    return selectedSlots.reduce((total, s) => {
+      const rule = (coach.availability || []).find(a =>
+        a.dayOfWeek === dow && a.startTime <= s.startTime && a.endTime >= s.endTime && a.pricePerHour != null
+      );
+      return total + (rule ? rule.pricePerHour : coach.pricePerHour);
+    }, 0);
+  };
+
   const calculatePricing = () => {
     const hours = selectedSlots.length || provisionalBooking?.duration || 0;
-    const courtPrice = selectedCourt ? selectedCourt.pricePerHour * hours : (provisionalBooking?.courtPrice || 0);
+    // Court: prefer the server-priced provisional; otherwise sum per-slot prices
+    // from available-slots (both already reflect time-band peak pricing).
+    const courtPrice = provisionalBooking
+      ? provisionalBooking.courtPrice
+      : selectedSlots.reduce((sum, s) => sum + (s.price ?? (selectedCourt?.pricePerHour || 0)), 0);
     let coachPrice = 0;
-    if (coachOption === 'in_house' && selectedCoach) coachPrice = selectedCoach.pricePerHour * hours;
+    if (coachOption === 'in_house' && selectedCoach) coachPrice = calcCoachPrice(selectedCoach);
     const outsideCoachFee = coachOption === 'outside' ? (settings.booking_rules?.outside_coach_fee || 100) : 0;
     const addOnsTotal = 0; // add_ons feature removed
     const subtotal = courtPrice + coachPrice + outsideCoachFee + addOnsTotal;
@@ -566,6 +584,9 @@ const BookingFlowPage = () => {
                             onClick={() => !isPast && handleSlotClick(slot)}
                           >
                             {slot.startTime}
+                            {selectedCourt && slot.price != null && slot.price !== selectedCourt.pricePerHour && (
+                              <div style={{ fontSize: '10px', fontWeight: 600, marginTop: '2px' }}>฿{slot.price}</div>
+                            )}
                           </div>
                         );
                       })}
@@ -588,7 +609,7 @@ const BookingFlowPage = () => {
               {/* Help text when user has an active provisional */}
               {provisionalBooking && !selectionMatchesProvisional() && selectedSlots.length > 0 && (
                 <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--gold-700, #b45309)', textAlign: 'center' }}>
-                  Picking a different slot will release your current reservation.
+                  {t('provisional.swapHint')}
                 </div>
               )}
             </>

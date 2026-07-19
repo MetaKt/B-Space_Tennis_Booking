@@ -4,7 +4,8 @@ import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { AdminLayout } from './AdminDashboard';
-import { adminAPI, courtAPI, coachAPI, BACKEND_URL } from '../../utils/api';
+import { adminAPI, courtAPI, coachAPI, bookingAPI, BACKEND_URL } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
 const PERIOD_OPTIONS = [
   { value: '',       label: 'ทั้งหมด' },
@@ -17,6 +18,7 @@ const PERIOD_OPTIONS = [
 const AdminBookingManagement = () => {
   const { t } = useTranslation();
   const location = useLocation();
+  const { user } = useAuth();
 
   const [bookings, setBookings]     = useState([]);
   const [courts, setCourts]         = useState([]);
@@ -41,6 +43,13 @@ const AdminBookingManagement = () => {
   const [reassignForm, setReassignForm]     = useState({ coachOption: 'none', coachId: '', outsideCoachName: '' });
   const [reassigning, setReassigning]       = useState(false);
   const [slipPreview, setSlipPreview]       = useState(null); // booking with slip to preview
+
+  // VIP booking (master admin only)
+  const [vipModal, setVipModal]       = useState(false);
+  const [vipForm, setVipForm]         = useState({ courtId: '', date: '', guestName: '', notes: '' });
+  const [vipSlots, setVipSlots]       = useState([]);
+  const [vipSelected, setVipSelected] = useState([]); // selected start hours (ints)
+  const [vipSaving, setVipSaving]     = useState(false);
 
   useEffect(() => {
     fetchCourts();
@@ -175,6 +184,56 @@ const AdminBookingManagement = () => {
     }
   };
 
+  // ----- VIP booking helpers -----
+  useEffect(() => {
+    if (!vipModal || !vipForm.courtId || !vipForm.date) { setVipSlots([]); setVipSelected([]); return; }
+    (async () => {
+      try {
+        const res = await bookingAPI.getAvailableSlots(vipForm.date, vipForm.courtId);
+        setVipSlots(res.data.data.slots);
+        setVipSelected([]);
+      } catch (e) { toast.error('โหลดช่วงเวลาไม่สำเร็จ'); }
+    })();
+  }, [vipModal, vipForm.courtId, vipForm.date]);
+
+  const toggleVipSlot = (hour) => {
+    setVipSelected(prev => prev.includes(hour)
+      ? prev.filter(h => h !== hour)
+      : [...prev, hour].sort((a, b) => a - b));
+  };
+
+  const handleCreateVip = async () => {
+    if (!vipForm.courtId || !vipForm.date || vipSelected.length === 0 || !vipForm.guestName.trim()) {
+      return toast.error('กรุณาเลือกคอร์ท วันที่ ช่วงเวลา และกรอกชื่อแขก');
+    }
+    // Require a contiguous block of hours
+    for (let i = 1; i < vipSelected.length; i++) {
+      if (vipSelected[i] !== vipSelected[i - 1] + 1) {
+        return toast.error('กรุณาเลือกช่วงเวลาที่ต่อเนื่องกัน');
+      }
+    }
+    setVipSaving(true);
+    try {
+      await adminAPI.createVipBooking({
+        courtId: vipForm.courtId,
+        date: vipForm.date,
+        startTime: `${String(vipSelected[0]).padStart(2, '0')}:00`,
+        endTime: `${String(vipSelected[vipSelected.length - 1] + 1).padStart(2, '0')}:00`,
+        guestName: vipForm.guestName.trim(),
+        notes: vipForm.notes,
+      });
+      toast.success('สร้างการจอง VIP แล้ว');
+      setVipModal(false);
+      setVipForm({ courtId: '', date: '', guestName: '', notes: '' });
+      setVipSelected([]);
+      fetchBookings();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'สร้างการจอง VIP ไม่สำเร็จ');
+    } finally {
+      setVipSaving(false);
+    }
+  };
+
   const selectStyle = {
     padding: '8px 12px',
     borderRadius: '3px',
@@ -210,6 +269,15 @@ const AdminBookingManagement = () => {
               <p style={{ fontSize: '13px', color: '#6b7280' }}>พบ {totalCount} รายการ</p>
             )}
           </div>
+          {user?.role === 'master_admin' && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setVipModal(true)}
+              style={{ width: 'auto', padding: '10px 20px', fontSize: '13px' }}
+            >
+              + จอง VIP
+            </button>
+          )}
         </div>
 
         {/* Period toggle */}
@@ -265,6 +333,7 @@ const AdminBookingManagement = () => {
             <option value="confirmed">{t('common.confirmed')}</option>
             <option value="pending_refund">{t('common.pending_refund')}</option>
             <option value="refunded">{t('common.refunded')}</option>
+            <option value="comp">{t('common.comp')}</option>
           </select>
           <select style={selectStyle} value={filters.court} onChange={(e) => handleFilterChange('court', e.target.value)}>
             <option value="">ทุกคอร์ท</option>
@@ -305,8 +374,20 @@ const AdminBookingManagement = () => {
                     <tr key={b.id} className={b.paymentStatus === 'submitted' ? 'row-needs-action' : ''}>
                       <td style={{ fontSize: '11px', fontFamily: 'monospace', color: '#6b7280' }}>{b.bookingId}</td>
                       <td>
-                        <div style={{ fontSize: '13px', fontWeight: 500 }}>{b.user?.name}</div>
-                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>{b.user?.phone}</div>
+                        {b.guestName ? (
+                          <>
+                            <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                              <span style={{ fontSize: '9px', fontWeight: 700, padding: '1px 5px', borderRadius: '3px', background: '#ffde17', color: '#073659', marginRight: '4px', letterSpacing: '0.3px' }}>VIP</span>
+                              {b.guestName}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#9ca3af' }}>จองโดย {b.user?.name}</div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontSize: '13px', fontWeight: 500 }}>{b.user?.name}</div>
+                            <div style={{ fontSize: '11px', color: '#9ca3af' }}>{b.user?.phone}</div>
+                          </>
+                        )}
                       </td>
                       <td>คอร์ท {b.court?.courtNumber}</td>
                       <td style={{ fontSize: '13px' }}>
@@ -557,6 +638,91 @@ const AdminBookingManagement = () => {
           </div>
         );
       })()}
+
+      {/* VIP booking modal — master admin only */}
+      {vipModal && (
+        <div className="modal-overlay" onClick={() => !vipSaving && setVipModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: 800, letterSpacing: '0.1px', textTransform: 'uppercase', marginBottom: '6px', color: '#061823' }}>
+              จองให้แขก VIP
+            </h3>
+            <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '16px' }}>
+              การจอง VIP ไม่ผ่านขั้นตอนชำระเงิน (ฟรี) และไม่นับรวมในรายได้
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '4px', display: 'block' }}>คอร์ท *</label>
+                <select style={inputStyle} value={vipForm.courtId} onChange={(e) => setVipForm({ ...vipForm, courtId: e.target.value })}>
+                  <option value="">— เลือกคอร์ท —</option>
+                  {courts.filter(c => c.isActive).map(c => (
+                    <option key={c.id} value={c.id}>คอร์ท {c.courtNumber} — {c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '4px', display: 'block' }}>วันที่ *</label>
+                <input style={inputStyle} type="date" min={format(new Date(), 'yyyy-MM-dd')} value={vipForm.date}
+                  onChange={(e) => setVipForm({ ...vipForm, date: e.target.value })} />
+              </div>
+            </div>
+
+            {vipSlots.length > 0 && (
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '6px', display: 'block' }}>
+                  ช่วงเวลา * (เลือกต่อเนื่องกันได้หลายชั่วโมง)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                  {vipSlots.map((slot) => {
+                    const hour = parseInt(slot.startTime.split(':')[0]);
+                    const selected = vipSelected.includes(hour);
+                    return (
+                      <button
+                        key={slot.startTime}
+                        disabled={!slot.available}
+                        onClick={() => toggleVipSlot(hour)}
+                        style={{
+                          padding: '8px 4px', borderRadius: '3px', fontSize: '12px', cursor: slot.available ? 'pointer' : 'not-allowed',
+                          border: selected ? 'none' : '1px solid #e5e7eb',
+                          background: !slot.available ? '#f3f4f6' : selected ? '#073659' : '#fff',
+                          color: !slot.available ? '#d1d5db' : selected ? '#ffde17' : '#374151',
+                          fontWeight: selected ? 700 : 500,
+                          textDecoration: !slot.available ? 'line-through' : 'none',
+                        }}
+                      >
+                        {slot.startTime}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '4px', display: 'block' }}>ชื่อแขก VIP *</label>
+              <input style={inputStyle} placeholder="เช่น คุณสมชาย" value={vipForm.guestName}
+                onChange={(e) => setVipForm({ ...vipForm, guestName: e.target.value })} />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '4px', display: 'block' }}>หมายเหตุ</label>
+              <input style={inputStyle} value={vipForm.notes}
+                onChange={(e) => setVipForm({ ...vipForm, notes: e.target.value })} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setVipModal(false)} disabled={vipSaving}
+                style={{ flex: 1, padding: '10px', border: '1px solid #e5e7eb', background: '#fff', borderRadius: '3px', cursor: 'pointer', fontSize: '13px' }}>
+                {t('common.cancel')}
+              </button>
+              <button onClick={handleCreateVip} disabled={vipSaving}
+                style={{ flex: 1, padding: '10px', border: 'none', background: '#073659', color: '#ffde17', borderRadius: '3px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.1px', textTransform: 'uppercase', opacity: vipSaving ? 0.6 : 1 }}>
+                {vipSaving ? 'กำลังบันทึก...' : 'จองเลย'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

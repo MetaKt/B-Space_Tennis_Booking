@@ -1,9 +1,11 @@
 // Admin routes — migrated from Mongoose (with $aggregate) to Prisma
 const express = require('express');
+const { Prisma } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 const { protect, adminAccess, masterOnly } = require('../middleware/auth');
 const { getIO } = require('../lib/socket');
-const { autoCompletePassedBookings } = require('../lib/bookingHelpers');
+const { autoCompletePassedBookings, generateBookingId } = require('../lib/bookingHelpers');
+const { priceForRange, dayOfWeekOf } = require('../lib/pricing');
 
 const router = express.Router();
 
@@ -221,6 +223,119 @@ router.get('/bookings', protect, adminAccess, async (req, res) => {
   }
 });
 
+// @route   POST /api/admin/bookings/vip
+// @desc    Master admin books a court directly for a VIP guest.
+//          No payment flow: created as confirmed_booking with paymentStatus 'comp'.
+//          Slot conflicts are checked in a SERIALIZABLE transaction like the
+//          user flow, so a VIP booking can never double-book a slot.
+// @access  Master Admin
+router.post('/bookings/vip', protect, masterOnly, async (req, res) => {
+  try {
+    const { courtId, date, startTime, endTime, guestName, notes } = req.body;
+
+    if (!courtId || !date || !startTime || !endTime || !guestName?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'courtId, date, startTime, endTime and guestName are required',
+      });
+    }
+
+    const court = await prisma.court.findUnique({ where: { id: courtId } });
+    if (!court || !court.isActive) {
+      return res.status(404).json({ success: false, message: 'Court not found or inactive' });
+    }
+
+    const queryDate = new Date(date + 'T00:00:00Z');
+    const nextDay = new Date(queryDate);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    if (Number.isNaN(queryDate.getTime()) || startTime >= endTime) {
+      return res.status(400).json({ success: false, message: 'Invalid date or time range' });
+    }
+
+    const hours = parseInt(endTime.split(':')[0]) - parseInt(startTime.split(':')[0]);
+
+    // Record the real court value for reference, but charge nothing (comp)
+    const dow = dayOfWeekOf(date);
+    const pricingRules = await prisma.courtPricing.findMany({ where: { courtId, dayOfWeek: dow } });
+    const courtPrice = priceForRange(pricingRules, court.pricePerHour, dow, startTime, endTime);
+    const bookingId = await generateBookingId();
+
+    let booking;
+    try {
+      booking = await prisma.$transaction(async (tx) => {
+        const conflict = await tx.booking.findFirst({
+          where: {
+            courtId,
+            status: { not: 'cancelled' },
+            date: { gte: queryDate, lt: nextDay },
+            OR: [
+              { bookingStatus: 'confirmed_booking', startTime: { lt: endTime }, endTime: { gt: startTime } },
+              { bookingStatus: 'provisional', expiresAt: { gt: new Date() }, startTime: { lt: endTime }, endTime: { gt: startTime } },
+            ],
+          },
+        });
+        if (conflict) {
+          const err = new Error('SLOT_CONFLICT');
+          err.code = 'SLOT_CONFLICT';
+          throw err;
+        }
+
+        return tx.booking.create({
+          data: {
+            bookingId,
+            userId: req.user.id,          // owned by the master admin's account
+            guestName: guestName.trim().slice(0, 100),
+            courtId,
+            date: queryDate,
+            startTime,
+            endTime,
+            duration: hours,
+            coachOption: 'none',
+            coachId: null,
+            courtPrice,
+            coachPrice: 0,
+            addOns: [],
+            addOnsTotal: 0,
+            subtotal: courtPrice,
+            creditUsed: 0,
+            totalPrice: 0,                // complimentary — excluded from revenue
+            paymentStatus: 'comp',
+            status: 'upcoming',
+            bookingStatus: 'confirmed_booking',
+            expiresAt: null,
+            notes: notes || '',
+          },
+          include: { court: { select: { courtNumber: true, name: true } } },
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (txError) {
+      if (txError.code === 'SLOT_CONFLICT' || txError.code === 'P2034') {
+        return res.status(409).json({
+          success: false,
+          code: 'SLOT_TAKEN',
+          message: 'This time slot is already booked. Please pick a different slot.',
+        });
+      }
+      throw txError;
+    }
+
+    // Broadcast so users watching this court/date see the slot become unavailable
+    const dateKey = booking.date.toISOString().slice(0, 10);
+    getIO().to(`court:${courtId}:${dateKey}`).emit('slot:booked', {
+      courtId,
+      date: dateKey,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      userId: req.user.id,
+    });
+
+    res.status(201).json({ success: true, message: 'VIP booking created', data: booking });
+  } catch (error) {
+    console.error('VIP booking error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
 // @route   PUT /api/admin/bookings/:id/confirm-payment
 // @desc    Admin confirms payment for a booking
 // @access  Admin
@@ -278,7 +393,10 @@ router.put('/bookings/:id/status', protect, adminAccess, async (req, res) => {
     let creditRefund = 0;
     let newPaymentStatus = 'refunded';
 
-    if (booking.paymentStatus === 'pending') {
+    if (booking.paymentStatus === 'comp') {
+      // VIP comp booking — no money involved, nothing to refund
+      newPaymentStatus = 'comp';
+    } else if (booking.paymentStatus === 'pending') {
       creditRefund = booking.creditUsed;
       newPaymentStatus = 'refunded';
     } else if (booking.paymentStatus === 'submitted') {

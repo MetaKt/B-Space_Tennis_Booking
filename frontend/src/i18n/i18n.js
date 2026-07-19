@@ -29,7 +29,10 @@ const resources = {
         logout: 'Logout',
         male: 'Male',
         female: 'Female',
-        other: 'Other'
+        other: 'Other',
+        termsAgree: 'I have read and agree to the',
+        termsLink: 'Terms & Conditions',
+        termsRequired: 'You must accept the Terms & Conditions to register'
       },
       home: {
         welcome: 'Welcome !',
@@ -59,6 +62,7 @@ const resources = {
         keepCurrent: 'Keep current',
         swapAction: 'Swap reservation',
         swapping: 'Swapping...',
+        swapHint: 'Picking a different slot will release your current reservation.',
         expired: 'This reservation has expired.',
         hasProvisional: 'You already have a pending reservation. Continue or release it from the home screen.'
       },
@@ -184,6 +188,7 @@ const resources = {
         submitted: 'Submitted',
         refunded: 'Refunded',
         pending_refund: 'Pending Refund',
+        comp: 'Comp (VIP)',
         active: 'Active',
         inactive: 'Inactive',
         coach_active: 'Coach Active',
@@ -222,7 +227,10 @@ const resources = {
         logout: 'ออกจากระบบ',
         male: 'ชาย',
         female: 'หญิง',
-        other: 'อื่นๆ'
+        other: 'อื่นๆ',
+        termsAgree: 'ข้าพเจ้าได้อ่านและยอมรับ',
+        termsLink: 'ข้อกำหนดและเงื่อนไข',
+        termsRequired: 'กรุณายอมรับข้อกำหนดและเงื่อนไขก่อนสมัครสมาชิก'
       },
       home: {
         welcome: 'ยินดีต้อนรับ !',
@@ -252,6 +260,7 @@ const resources = {
         keepCurrent: 'เก็บการจองเดิม',
         swapAction: 'เปลี่ยนการจอง',
         swapping: 'กำลังเปลี่ยน...',
+        swapHint: 'การเลือกช่วงเวลาอื่นจะยกเลิกการจองปัจจุบันของคุณ',
         expired: 'การจองนี้หมดเวลาแล้ว',
         hasProvisional: 'คุณมีการจองที่ยังไม่เสร็จสิ้น กรุณาดำเนินการต่อหรือยกเลิกจากหน้าหลัก'
       },
@@ -378,6 +387,7 @@ const resources = {
         submitted: 'ส่งแล้ว',
         refunded: 'คืนเงินแล้ว',
         pending_refund: 'รอคืนเงิน',
+        comp: 'ฟรี (VIP)',
         active: 'เปิดใช้งาน',
         coach_active: 'โค้ชปกติ',
         coach_cancelled: 'ยกเลิกโค้ช',

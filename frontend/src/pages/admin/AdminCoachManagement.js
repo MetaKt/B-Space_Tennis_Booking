@@ -4,8 +4,16 @@ import toast from 'react-hot-toast';
 import { AdminLayout } from './AdminDashboard';
 import { coachAPI } from '../../utils/api';
 
-const DAYS = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
-const SPECIALIZATIONS = ['Beginner', 'Intermediate', 'Advanced', 'Kids', 'Competition', 'Fitness', 'Technique'];
+// dayOfWeek matches JS Date.getDay(): 0 = Sunday … 6 = Saturday
+const DAYS = [
+  { label: 'จันทร์', value: 1 },
+  { label: 'อังคาร', value: 2 },
+  { label: 'พุธ', value: 3 },
+  { label: 'พฤหัสบดี', value: 4 },
+  { label: 'ศุกร์', value: 5 },
+  { label: 'เสาร์', value: 6 },
+  { label: 'อาทิตย์', value: 0 },
+];
 
 const AdminCoachManagement = () => {
   const { t } = useTranslation();
@@ -27,10 +35,10 @@ const AdminCoachManagement = () => {
 
   const defaultForm = () => ({
     name: '', nickname: '', phone: '', email: '', bio: '',
-    specialization: [], certifications: '',
+    specialization: '', certifications: '',
     yearsOfExperience: '', pricePerHour: '',
     maxDailyBookings: 5, notes: '',
-    availability: [{ dayOfWeek: 1, startTime: '08:00', endTime: '18:00' }],
+    availability: [{ dayOfWeek: 1, startTime: '08:00', endTime: '18:00', pricePerHour: '' }],
   });
 
   const openCreate = () => { setForm(defaultForm()); setModal('create'); };
@@ -42,15 +50,15 @@ const AdminCoachManagement = () => {
       phone:             coach.phone || '',
       email:             coach.email || '',
       bio:               coach.bio || '',
-      specialization:    coach.specialization || [],
+      specialization:    (coach.specialization || []).join(', '),
       certifications:    (coach.certifications || []).join(', '),
       yearsOfExperience: coach.yearsOfExperience || '',
       pricePerHour:      coach.pricePerHour || '',
       maxDailyBookings:  coach.maxDailyBookings || 5,
       notes:             coach.notes || '',
       availability:      coach.availability?.length
-        ? coach.availability
-        : [{ dayOfWeek: 1, startTime: '08:00', endTime: '18:00' }],
+        ? coach.availability.map(a => ({ ...a, pricePerHour: a.pricePerHour ?? '' }))
+        : [{ dayOfWeek: 1, startTime: '08:00', endTime: '18:00', pricePerHour: '' }],
     });
     setModal(coach);
   };
@@ -59,6 +67,9 @@ const AdminCoachManagement = () => {
     if (!form.name || !form.pricePerHour) return toast.error('กรุณากรอกชื่อและราคา');
     const payload = {
       ...form,
+      specialization: form.specialization
+        ? form.specialization.split(',').map(s => s.trim()).filter(Boolean)
+        : [],
       certifications: form.certifications
         ? form.certifications.split(',').map(c => c.trim()).filter(Boolean)
         : [],
@@ -89,18 +100,8 @@ const AdminCoachManagement = () => {
     } catch (e) { toast.error('อัปเดตไม่สำเร็จ'); }
   };
 
-  const toggleSpec = (spec) => {
-    const current = form.specialization || [];
-    setForm({
-      ...form,
-      specialization: current.includes(spec)
-        ? current.filter(s => s !== spec)
-        : [...current, spec],
-    });
-  };
-
   const addAvailability = () => {
-    setForm({ ...form, availability: [...form.availability, { dayOfWeek: 1, startTime: '08:00', endTime: '18:00' }] });
+    setForm({ ...form, availability: [...form.availability, { dayOfWeek: 1, startTime: '08:00', endTime: '18:00', pricePerHour: '' }] });
   };
 
   const updateAvailability = (index, field, value) => {
@@ -144,7 +145,7 @@ const AdminCoachManagement = () => {
                 <tr>
                   <th>{t('admin.name')}</th>
                   <th>ชื่อเล่น</th>
-                  <th>ความเชี่ยวชาญ</th>
+                  <th>แท็ก</th>
                   <th>ราคา/ชม.</th>
                   <th>{t('admin.status')}</th>
                   <th>{t('admin.actions')}</th>
@@ -221,20 +222,9 @@ const AdminCoachManagement = () => {
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>ความเชี่ยวชาญ</label>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                {SPECIALIZATIONS.map((spec) => (
-                  <span key={spec} onClick={() => toggleSpec(spec)}
-                    style={{
-                      padding: '4px 12px', borderRadius: '2px', fontSize: '12px', cursor: 'pointer',
-                      background: form.specialization?.includes(spec) ? '#073659' : '#f3f4f6',
-                      color: form.specialization?.includes(spec) ? '#ffde17' : '#374151',
-                      fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0px',
-                    }}>
-                    {spec}
-                  </span>
-                ))}
-              </div>
+              <label style={labelStyle}>แท็ก / คำอธิบายสั้น (คั่นด้วยจุลภาค)</label>
+              <input style={inputStyle} value={form.specialization} placeholder="เช่น มือใหม่, เด็ก, สายแข่ง"
+                onChange={(e) => setForm({ ...form, specialization: e.target.value })} />
             </div>
 
             <div style={{ marginBottom: '12px' }}>
@@ -249,18 +239,22 @@ const AdminCoachManagement = () => {
 
             <div style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={labelStyle}>ตารางเวลาว่าง</label>
+                <label style={labelStyle}>ตารางเวลาว่าง + ราคาต่อชั่วโมง</label>
                 <button onClick={addAvailability} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '3px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#073659', fontWeight: 600 }}>
                   + เพิ่ม
                 </button>
               </div>
+              <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '6px' }}>
+                เว้นช่องราคาว่างไว้ = ใช้ราคาปกติ ฿{form.pricePerHour || '—'}/ชม.
+              </div>
               {(form.availability || []).map((avail, i) => (
                 <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
                   <select style={{ ...inputStyle, flex: 2 }} value={avail.dayOfWeek} onChange={(e) => updateAvailability(i, 'dayOfWeek', e.target.value)}>
-                    {DAYS.map((day, di) => <option key={di} value={di + 1}>{day}</option>)}
+                    {DAYS.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
                   </select>
                   <input type="time" style={{ ...inputStyle, flex: 1 }} value={avail.startTime} onChange={(e) => updateAvailability(i, 'startTime', e.target.value)} />
                   <input type="time" style={{ ...inputStyle, flex: 1 }} value={avail.endTime} onChange={(e) => updateAvailability(i, 'endTime', e.target.value)} />
+                  <input type="number" placeholder={`฿${form.pricePerHour || ''}`} style={{ ...inputStyle, flex: 1 }} value={avail.pricePerHour} onChange={(e) => updateAvailability(i, 'pricePerHour', e.target.value)} />
                   <button onClick={() => removeAvailability(i)} style={{ padding: '6px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '18px', color: '#ef4444' }}>x</button>
                 </div>
               ))}

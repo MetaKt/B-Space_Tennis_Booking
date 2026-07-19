@@ -8,6 +8,7 @@ const RegisterPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [form, setForm] = useState({
     name: '', phone: '', email: '', gender: '', dateOfBirth: '', occupation: ''
   });
@@ -30,9 +31,13 @@ const RegisterPage = () => {
       return toast.error('Email, gender, and date of birth are required');
     }
 
+    if (!termsAccepted) {
+      return toast.error(t('auth.termsRequired'));
+    }
+
     setLoading(true);
     try {
-      await authAPI.register(form);
+      await authAPI.register({ ...form, termsAccepted });
       toast.success(t('auth.otpSent'));
       navigate('/otp', { state: { phone: form.phone, name: form.name, mode: 'register' } });
     } catch (error) {
@@ -76,6 +81,21 @@ const RegisterPage = () => {
           <div className="form-group">
             <label>{t('auth.occupation')}</label>
             <input type="text" name="occupation" className="form-input" placeholder="e.g. Engineer" value={form.occupation} onChange={handleChange} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <input
+              type="checkbox"
+              id="terms"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              style={{ marginTop: '3px', width: '16px', height: '16px', flexShrink: 0, cursor: 'pointer' }}
+            />
+            <label htmlFor="terms" style={{ fontSize: '13px', color: 'var(--gray-600)', cursor: 'pointer', lineHeight: 1.5 }}>
+              {t('auth.termsAgree')}{' '}
+              <a href="/terms.pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue-600, #2563eb)', fontWeight: 600 }}>
+                {t('auth.termsLink')}
+              </a>
+            </label>
           </div>
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? t('common.loading') : t('auth.register')}

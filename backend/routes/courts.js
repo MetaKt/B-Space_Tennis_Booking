@@ -5,6 +5,23 @@ const { protect, adminAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Normalize client-sent pricing rows → CourtPricing create data.
+// Number inputs arrive as strings from the admin form; coerce and drop invalid rows.
+const normalizePricingRows = (rows) =>
+  (Array.isArray(rows) ? rows : [])
+    .map(r => ({
+      dayOfWeek: parseInt(r.dayOfWeek),
+      startTime: r.startTime,
+      endTime: r.endTime,
+      pricePerHour: Number(r.pricePerHour),
+    }))
+    .filter(r =>
+      Number.isInteger(r.dayOfWeek) && r.dayOfWeek >= 0 && r.dayOfWeek <= 6 &&
+      typeof r.startTime === 'string' && typeof r.endTime === 'string' &&
+      r.startTime < r.endTime &&
+      Number.isFinite(r.pricePerHour) && r.pricePerHour >= 0
+    );
+
 // @route   GET /api/courts
 // @desc    Get all active courts (users) or all courts (admins)
 // @access  Private
@@ -14,6 +31,7 @@ router.get('/', protect, async (req, res) => {
     const courts = await prisma.court.findMany({
       where: isAdmin ? {} : { isActive: true },
       orderBy: { courtNumber: 'asc' },
+      include: { pricing: true },
     });
     res.json({ success: true, data: courts });
   } catch (error) {
@@ -26,7 +44,10 @@ router.get('/', protect, async (req, res) => {
 // @access  Private
 router.get('/:id', protect, async (req, res) => {
   try {
-    const court = await prisma.court.findUnique({ where: { id: req.params.id } });
+    const court = await prisma.court.findUnique({
+      where: { id: req.params.id },
+      include: { pricing: true },
+    });
     if (!court) {
       return res.status(404).json({ success: false, message: 'Court not found' });
     }
@@ -41,7 +62,7 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Admin
 router.post('/', protect, adminAccess, async (req, res) => {
   try {
-    const { courtNumber, name, description, surface, pricePerHour, openTime, closeTime } = req.body;
+    const { courtNumber, name, description, surface, pricePerHour, openTime, closeTime, pricing } = req.body;
 
     const existing = await prisma.court.findUnique({ where: { courtNumber: Number(courtNumber) } });
     if (existing) {
@@ -57,7 +78,9 @@ router.post('/', protect, adminAccess, async (req, res) => {
         pricePerHour: Number(pricePerHour),
         openTime: openTime || '06:00',
         closeTime: closeTime || '22:00',
+        pricing: { create: normalizePricingRows(pricing) },
       },
+      include: { pricing: true },
     });
 
     res.status(201).json({ success: true, data: court });
@@ -71,7 +94,7 @@ router.post('/', protect, adminAccess, async (req, res) => {
 // @access  Admin
 router.put('/:id', protect, adminAccess, async (req, res) => {
   try {
-    const { courtNumber, name, description, surface, pricePerHour, openTime, closeTime, isActive, image } = req.body;
+    const { courtNumber, name, description, surface, pricePerHour, openTime, closeTime, isActive, image, pricing } = req.body;
     const data = {};
 
     if (courtNumber !== undefined) data.courtNumber = Number(courtNumber);
@@ -84,9 +107,18 @@ router.put('/:id', protect, adminAccess, async (req, res) => {
     if (isActive !== undefined)    data.isActive = isActive;
     if (image !== undefined)       data.image = image;
 
+    // Replace pricing rows entirely when provided (same pattern as coach availability)
+    if (pricing !== undefined) {
+      data.pricing = {
+        deleteMany: {},
+        create: normalizePricingRows(pricing),
+      };
+    }
+
     const court = await prisma.court.update({
       where: { id: req.params.id },
       data,
+      include: { pricing: true },
     });
 
     res.json({ success: true, data: court });

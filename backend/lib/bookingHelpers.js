@@ -40,4 +40,18 @@ async function autoCompletePassedBookings() {
   });
 }
 
-module.exports = { autoCompletePassedBookings };
+// Human-readable booking ref (BK-XXXXXX) — charset avoids ambiguous characters
+const BOOKING_ID_CHARSET = 'ABCDEFGHJKLMNPQRTUVWXYZ2346789';
+async function generateBookingId() {
+  let id, exists = true;
+  while (exists) {
+    const suffix = Array.from({ length: 6 }, () =>
+      BOOKING_ID_CHARSET[Math.floor(Math.random() * BOOKING_ID_CHARSET.length)]
+    ).join('');
+    id = `BK-${suffix}`;
+    exists = !!(await prisma.booking.findUnique({ where: { bookingId: id } }));
+  }
+  return id;
+}
+
+module.exports = { autoCompletePassedBookings, generateBookingId };

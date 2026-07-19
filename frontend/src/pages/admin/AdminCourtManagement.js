@@ -4,6 +4,17 @@ import toast from 'react-hot-toast';
 import { AdminLayout } from './AdminDashboard';
 import { courtAPI } from '../../utils/api';
 
+// dayOfWeek matches JS Date.getDay(): 0 = Sunday … 6 = Saturday
+const DAYS = [
+  { label: 'จันทร์', value: 1 },
+  { label: 'อังคาร', value: 2 },
+  { label: 'พุธ', value: 3 },
+  { label: 'พฤหัสบดี', value: 4 },
+  { label: 'ศุกร์', value: 5 },
+  { label: 'เสาร์', value: 6 },
+  { label: 'อาทิตย์', value: 0 },
+];
+
 const AdminCourtManagement = () => {
   const { t } = useTranslation();
   const [courts, setCourts]   = useState([]);
@@ -12,6 +23,7 @@ const AdminCourtManagement = () => {
   const [form, setForm]       = useState({
     courtNumber: '', name: '', description: '',
     pricePerHour: '', openTime: '06:00', closeTime: '22:00',
+    pricing: [],
   });
 
   useEffect(() => { fetchCourts(); }, []);
@@ -26,7 +38,7 @@ const AdminCourtManagement = () => {
   };
 
   const openCreate = () => {
-    setForm({ courtNumber: '', name: '', description: '', pricePerHour: '', openTime: '06:00', closeTime: '22:00' });
+    setForm({ courtNumber: '', name: '', description: '', pricePerHour: '', openTime: '06:00', closeTime: '22:00', pricing: [] });
     setModal('create');
   };
 
@@ -38,8 +50,23 @@ const AdminCourtManagement = () => {
       pricePerHour: court.pricePerHour,
       openTime:     court.openTime,
       closeTime:    court.closeTime,
+      pricing:      court.pricing || [],
     });
     setModal(court);
+  };
+
+  const addPricingRow = () => {
+    setForm({ ...form, pricing: [...form.pricing, { dayOfWeek: 1, startTime: '17:00', endTime: '21:00', pricePerHour: '' }] });
+  };
+
+  const updatePricingRow = (index, field, value) => {
+    const rows = [...form.pricing];
+    rows[index] = { ...rows[index], [field]: field === 'dayOfWeek' ? parseInt(value) : value };
+    setForm({ ...form, pricing: rows });
+  };
+
+  const removePricingRow = (index) => {
+    setForm({ ...form, pricing: form.pricing.filter((_, i) => i !== index) });
   };
 
   const handleSave = async () => {
@@ -177,7 +204,7 @@ const AdminCourtManagement = () => {
                 onChange={(e) => setForm({ ...form, pricePerHour: e.target.value })} />
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
               <div style={{ flex: 1 }}>
                 <label style={labelStyle}>เวลาเปิด</label>
                 <input style={inputStyle} type="time" value={form.openTime}
@@ -188,6 +215,29 @@ const AdminCourtManagement = () => {
                 <input style={inputStyle} type="time" value={form.closeTime}
                   onChange={(e) => setForm({ ...form, closeTime: e.target.value })} />
               </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={labelStyle}>ราคาตามช่วงเวลา (Peak)</label>
+                <button onClick={addPricingRow} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '3px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#073659', fontWeight: 600 }}>
+                  + เพิ่ม
+                </button>
+              </div>
+              <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '6px' }}>
+                ชั่วโมงนอกช่วงเวลาเหล่านี้คิดราคาปกติ ฿{form.pricePerHour || '—'}/ชม.
+              </div>
+              {(form.pricing || []).map((row, i) => (
+                <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
+                  <select style={{ ...inputStyle, flex: 2 }} value={row.dayOfWeek} onChange={(e) => updatePricingRow(i, 'dayOfWeek', e.target.value)}>
+                    {DAYS.map((day) => <option key={day.value} value={day.value}>{day.label}</option>)}
+                  </select>
+                  <input type="time" style={{ ...inputStyle, flex: 1 }} value={row.startTime} onChange={(e) => updatePricingRow(i, 'startTime', e.target.value)} />
+                  <input type="time" style={{ ...inputStyle, flex: 1 }} value={row.endTime} onChange={(e) => updatePricingRow(i, 'endTime', e.target.value)} />
+                  <input type="number" placeholder="฿" style={{ ...inputStyle, flex: 1 }} value={row.pricePerHour} onChange={(e) => updatePricingRow(i, 'pricePerHour', e.target.value)} />
+                  <button onClick={() => removePricingRow(i)} style={{ padding: '6px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '18px', color: '#ef4444' }}>x</button>
+                </div>
+              ))}
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>

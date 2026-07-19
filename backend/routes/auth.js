@@ -47,7 +47,7 @@ const storeRefreshToken = async (userId, token) => {
 // @access  Public
 router.post('/register', authLimiter, async (req, res) => {
   try {
-    const { name, phone, email, gender, dateOfBirth, occupation } = req.body;
+    const { name, phone, email, gender, dateOfBirth, occupation, termsAccepted } = req.body;
 
     if (!name || !phone) {
       return res.status(400).json({ success: false, message: 'Name and phone are required' });
@@ -72,6 +72,10 @@ router.post('/register', authLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid date of birth' });
     }
 
+    if (termsAccepted !== true) {
+      return res.status(400).json({ success: false, message: 'You must accept the Terms & Conditions to register' });
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { phone } });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Phone number already registered' });
@@ -85,6 +89,7 @@ router.post('/register', authLimiter, async (req, res) => {
         gender,
         dateOfBirth: new Date(dateOfBirth),
         occupation: occupation || '',
+        termsAcceptedAt: new Date(),
       },
     });
 

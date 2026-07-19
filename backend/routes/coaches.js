@@ -125,18 +125,21 @@ router.post('/', protect, adminAccess, async (req, res) => {
         bio: bio || '',
         specialization: specialization || [],
         certifications: certifications || [],
-        yearsOfExperience: yearsOfExperience || 0,
+        // Number inputs arrive as strings from the admin form — Prisma requires real Ints
+        yearsOfExperience: parseInt(yearsOfExperience) || 0,
         pricePerHour: Number(pricePerHour),
         pricePerSession: Number(pricePerSession) || 0,
         isInHouse: isInHouse !== undefined ? isInHouse : true,
-        maxDailyBookings: maxDailyBookings || 8,
+        maxDailyBookings: parseInt(maxDailyBookings) || 8,
         notes: notes || '',
         // Nested create for availability (replaces embedded Mongoose array)
         availability: {
           create: (availability || []).map(a => ({
-            dayOfWeek: a.dayOfWeek,
+            dayOfWeek: parseInt(a.dayOfWeek),
             startTime: a.startTime,
             endTime: a.endTime,
+            // per-window price override; blank/absent → coach base rate applies
+            pricePerHour: a.pricePerHour === '' || a.pricePerHour == null ? null : Number(a.pricePerHour),
           })),
         },
       },
@@ -169,11 +172,11 @@ router.put('/:id', protect, adminAccess, async (req, res) => {
     if (bio !== undefined)               data.bio = bio;
     if (specialization !== undefined)    data.specialization = specialization;
     if (certifications !== undefined)    data.certifications = certifications;
-    if (yearsOfExperience !== undefined) data.yearsOfExperience = yearsOfExperience;
+    if (yearsOfExperience !== undefined) data.yearsOfExperience = parseInt(yearsOfExperience) || 0;
     if (pricePerHour !== undefined)      data.pricePerHour = Number(pricePerHour);
     if (pricePerSession !== undefined)   data.pricePerSession = Number(pricePerSession);
     if (isInHouse !== undefined)         data.isInHouse = isInHouse;
-    if (maxDailyBookings !== undefined)  data.maxDailyBookings = maxDailyBookings;
+    if (maxDailyBookings !== undefined)  data.maxDailyBookings = parseInt(maxDailyBookings) || 8;
     if (notes !== undefined)             data.notes = notes;
     if (isActive !== undefined)          data.isActive = isActive;
 
@@ -182,9 +185,11 @@ router.put('/:id', protect, adminAccess, async (req, res) => {
       data.availability = {
         deleteMany: {},
         create: availability.map(a => ({
-          dayOfWeek: a.dayOfWeek,
+          dayOfWeek: parseInt(a.dayOfWeek),
           startTime: a.startTime,
           endTime: a.endTime,
+          // per-window price override; blank/absent → coach base rate applies
+          pricePerHour: a.pricePerHour === '' || a.pricePerHour == null ? null : Number(a.pricePerHour),
         })),
       };
     }

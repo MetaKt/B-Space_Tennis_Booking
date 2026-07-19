@@ -155,6 +155,7 @@ export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
   getTodayBookings: () => api.get('/admin/dashboard/today-bookings'),
   getBookings: (params) => api.get('/admin/bookings', { params }),
+  createVipBooking: (data) => api.post('/admin/bookings/vip', data),
   confirmPayment: (id) => api.put(`/admin/bookings/${id}/confirm-payment`),
   updateBookingStatus: (id, status) => api.put(`/admin/bookings/${id}/status`, { status }),
   processRefund: (id) => api.put(`/admin/bookings/${id}/process-refund`),
